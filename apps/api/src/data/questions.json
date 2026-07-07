@@ -1,0 +1,38 @@
+[
+  {
+    "id": "q1",
+    "title": "Nordic Harbor",
+    "streetView": {
+      "lat": 59.9139,
+      "lng": 10.7522,
+      "heading": 120,
+      "pitch": 0,
+      "fov": 100,
+      "panoId": null
+    }
+  },
+  {
+    "id": "q2",
+    "title": "Tokyo Street",
+    "streetView": {
+      "lat": 35.6762,
+      "lng": 139.6503,
+      "heading": 210,
+      "pitch": 0,
+      "fov": 100,
+      "panoId": null
+    }
+  },
+  {
+    "id": "q3",
+    "title": "Andean City",
+    "streetView": {
+      "lat": -13.5319,
+      "lng": -71.9675,
+      "heading": 40,
+      "pitch": 0,
+      "fov": 100,
+      "panoId": null
+    }
+  }
+]
