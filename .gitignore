@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+.env.local
+apps/web/.env.local
+apps/api/.env.local

@@ -1,0 +1,12 @@
+{
+  "name": "geoguesr-mvp",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:api": "pnpm --dir apps/api dev",
+    "build:web": "pnpm --dir apps/web build",
+    "start:api": "pnpm --dir apps/api start"
+  }
+}

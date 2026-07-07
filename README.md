@@ -1,2 +1,112 @@
-# GeoguessrEX
-简单的图寻游戏，结合了空间信息相关应用
+# GeoGuesr MVP
+
+最小可运行图寻框架，当前只包含单人基础玩法：
+
+- 读取本地 JSON 题库
+- 展示题目图片
+- 地图点击猜位置
+- 提交答案
+- 使用 Haversine 计算距离
+- 根据距离计算分数
+- 展示结果页
+- 支持下一题
+
+## 技术栈
+
+- 前端：Vite + React + AMap JSAPI
+- 后端：Express
+- 数据源：本地 JSON
+
+## 端口规范
+
+- 前端开发端口：`5173`
+- 后端开发端口：`3001`
+
+## 启动方式
+
+优先支持 `npm`，如果本机装了 `pnpm` 也可以用。
+
+1. 安装前端依赖
+   `cd apps/web && npm install`
+2. 安装后端依赖
+   `cd apps/api && npm install`
+3. 启动后端
+   `cd apps/api && npm run dev`
+4. 启动前端
+   `cd apps/web && npm run dev`
+
+打开 `http://localhost:5173`。
+
+## 目录说明
+
+- `apps/web`：前端应用
+- `apps/api`：后端 API
+
+## 题库格式
+
+题库文件位于 `apps/api/src/data/questions.json`。
+
+字段示例：
+
+```json
+{
+  "id": "q1",
+  "title": "Nordic Harbor",
+  "streetView": {
+    "lat": 59.9139,
+    "lng": 10.7522,
+    "heading": 120,
+    "pitch": 0,
+    "fov": 100,
+    "panoId": null
+  }
+}
+```
+
+## 地图约束
+
+- 当前猜点地图默认使用 `AMap JSAPI`
+- 主街景视图使用 `Google Maps Embed API`
+- 题库坐标与后端距离计算统一使用 `WGS-84`
+
+当前实现已经内置这套转换：
+
+- 前端展示前做 `WGS-84 -> GCJ-02`
+- 用户点击提交前做 `GCJ-02 -> WGS-84`
+- 后端算距离时仍只使用 `WGS-84`
+
+## 分支规范
+
+- `main`：稳定分支
+- `feat/*`：功能开发
+- `fix/*`：缺陷修复
+- `chore/*`：工程调整
+
+## 提交规范
+
+建议使用简洁的 Conventional Commits：
+
+- `feat: add single question flow`
+- `fix: correct haversine scoring`
+- `docs: update startup guide`
+
+## 当前状态
+
+当前为试水版 MVP 骨架，后续可继续扩展：
+
+- 图片本地化存储
+- 题目顺序控制
+- 多局累计分数
+- 排行榜与账号体系
+
+## Google Street View 配置
+
+前端通过 Google Maps Embed API 加载 Street View。需要在 `apps/web` 下创建 `.env.local`：
+
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+VITE_AMAP_API_KEY=your_amap_api_key
+```
+
+- 没有 `VITE_GOOGLE_MAPS_API_KEY` 时，Street View 会显示占位提示
+- 没有 `VITE_AMAP_API_KEY` 时，高德猜点地图和结果地图会显示占位提示
