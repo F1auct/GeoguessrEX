@@ -1,3 +1,6 @@
 node_modules/
 dist/
 apps/api/src/data/users.json
+apps/api/data/
+apps/api/uploads/
+CLAUDE.md

@@ -1,3 +1,5 @@
+import { resolveApiAssetUrl } from "../services/api.js";
+
 function buildStreetViewUrl(streetView, apiKey) {
   const params = new URLSearchParams({
     key: apiKey,
@@ -19,6 +21,18 @@ export function buildStreetViewEmbedUrl(streetView, apiKey) {
 }
 
 export default function StreetViewPanel({ question, apiKey, fullscreen = false }) {
+  if (question.sourceType === "image") {
+    return (
+      <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
+        {!fullscreen ? <div className="eyebrow">图片题</div> : null}
+        {!fullscreen ? <h1>{question.title}</h1> : null}
+        <div className="streetview-frame image-question-frame">
+          <img src={resolveApiAssetUrl(question.imageUrl)} alt={question.title} />
+        </div>
+      </section>
+    );
+  }
+
   if (!apiKey) {
     return (
       <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>

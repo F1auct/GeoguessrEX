@@ -1,262 +1,306 @@
-import fs from "fs";
-import path from "path";
+import crypto from "crypto";
+import { db } from "./database.js";
 
-const dataPath = path.join(process.cwd(), "src", "data", "questions.json");
-const DEFAULT_GROUP_ID = "default";
-const NEW_GROUP_ID = "new";
+function nowIso() {
+  return new Date().toISOString();
+}
 
-function createGroup(id, title, questions = []) {
+function canEditBank(user, bank) {
+  return user?.role === "admin" || (user?.id && bank?.owner_user_id === user.id);
+}
+
+function bankRowToGroup(row, user) {
   return {
-    id,
-    title,
-    questions
+    id: row.id,
+    title: row.title,
+    ownerUserId: row.owner_user_id,
+    ownerUsername: row.owner_username || "系统",
+    count: row.question_count ?? 0,
+    canEdit: canEditBank(user, row),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
-function normalizeQuestion(question) {
-  return {
-    id: String(question.id ?? "").trim(),
-    title: String(question.title ?? "").trim(),
-    description: String(question.description ?? "").trim(),
+function questionRowToQuestion(row, user) {
+  const base = {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    sourceType: row.source_type,
+    imageUrl: row.image_path,
+    groupId: row.bank_id,
+    groupTitle: row.bank_title,
+    ownerUserId: row.owner_user_id,
+    ownerUsername: row.owner_username || "系统",
+    canEdit: canEditBank(user, row),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
     streetView: {
-      lat: question.streetView.lat,
-      lng: question.streetView.lng,
-      heading: question.streetView.heading,
-      pitch: question.streetView.pitch,
-      fov: question.streetView.fov,
-      panoId: question.streetView.panoId ?? null
+      lat: row.lat,
+      lng: row.lng,
+      heading: row.heading,
+      pitch: row.pitch,
+      fov: row.fov,
+      panoId: row.pano_id ?? null
     }
+  };
+
+  return base;
+}
+
+function getBankRow(groupId) {
+  return db
+    .prepare(`
+      SELECT b.*, u.username AS owner_username
+      FROM question_banks b
+      LEFT JOIN users u ON u.id = b.owner_user_id
+      WHERE b.id = ?
+    `)
+    .get(groupId);
+}
+
+function getQuestionRow(questionId) {
+  return db
+    .prepare(`
+      SELECT q.*, b.title AS bank_title, b.owner_user_id, u.username AS owner_username
+      FROM questions q
+      JOIN question_banks b ON b.id = q.bank_id
+      LEFT JOIN users u ON u.id = b.owner_user_id
+      WHERE q.id = ?
+    `)
+    .get(questionId);
+}
+
+function normalizeQuestionInput(input, existing = {}) {
+  const sourceType = input.sourceType || existing.source_type || "street_view";
+  const streetView = input.streetView || {};
+  const lat = input.lat ?? streetView.lat ?? existing.lat;
+  const lng = input.lng ?? streetView.lng ?? existing.lng;
+
+  return {
+    id: String(input.id ?? existing.id ?? crypto.randomUUID()).trim(),
+    title: String(input.title ?? existing.title ?? "").trim(),
+    description: String(input.description ?? existing.description ?? "").trim(),
+    groupId: String(input.groupId ?? existing.bank_id ?? "").trim(),
+    sourceType,
+    lat,
+    lng,
+    heading: input.heading ?? streetView.heading ?? existing.heading ?? 0,
+    pitch: input.pitch ?? streetView.pitch ?? existing.pitch ?? 0,
+    fov: input.fov ?? streetView.fov ?? existing.fov ?? 100,
+    panoId: input.panoId ?? streetView.panoId ?? existing.pano_id ?? null,
+    imagePath: input.imageUrl ?? input.imagePath ?? existing.image_path ?? null
   };
 }
 
-function normalizeBank(rawData) {
-  if (Array.isArray(rawData)) {
-    return {
-      groups: [
-        createGroup(
-          DEFAULT_GROUP_ID,
-          "默认题库",
-          rawData.map((question) => normalizeQuestion(question))
-        ),
-        createGroup(NEW_GROUP_ID, "新题库", [])
-      ]
-    };
-  }
-
-  if (!rawData || typeof rawData !== "object" || !Array.isArray(rawData.groups)) {
-    return {
-      groups: [createGroup(DEFAULT_GROUP_ID, "默认题库", []), createGroup(NEW_GROUP_ID, "新题库", [])]
-    };
-  }
-
-  const groups = rawData.groups.map((group) =>
-    createGroup(
-      String(group.id ?? "").trim(),
-      String(group.title ?? "").trim(),
-      Array.isArray(group.questions) ? group.questions.map((question) => normalizeQuestion(question)) : []
-    )
-  );
-
-  if (!groups.find((group) => group.id === NEW_GROUP_ID)) {
-    groups.push(createGroup(NEW_GROUP_ID, "新题库", []));
-  }
-
-  return { groups };
+export function listGroups(user) {
+  return db
+    .prepare(`
+      SELECT b.*, u.username AS owner_username, COUNT(q.id) AS question_count
+      FROM question_banks b
+      LEFT JOIN users u ON u.id = b.owner_user_id
+      LEFT JOIN questions q ON q.bank_id = b.id
+      GROUP BY b.id
+      ORDER BY b.created_at ASC
+    `)
+    .all()
+    .map((row) => bankRowToGroup(row, user));
 }
 
-function readBank() {
-  const raw = fs.readFileSync(dataPath, "utf8");
-  return normalizeBank(JSON.parse(raw));
+export function getGroupById(groupId, user) {
+  const row = getBankRow(groupId);
+  return row ? bankRowToGroup({ ...row, question_count: countQuestions(groupId) }, user) : null;
 }
 
-function writeBank(bank) {
-  fs.writeFileSync(dataPath, `${JSON.stringify(bank, null, 2)}\n`, "utf8");
+function countQuestions(groupId) {
+  return db.prepare("SELECT COUNT(*) AS count FROM questions WHERE bank_id = ?").get(groupId).count;
 }
 
-function findGroup(bank, groupId) {
-  return bank.groups.find((group) => group.id === groupId) ?? null;
-}
-
-function findQuestionEntry(bank, questionId) {
-  for (const group of bank.groups) {
-    const question = group.questions.find((item) => item.id === questionId);
-    if (question) {
-      return { group, question };
-    }
-  }
-  return null;
-}
-
-export function getQuestionBank() {
-  return readBank();
-}
-
-export function listGroups() {
-  return readBank().groups.map((group) => ({
-    id: group.id,
-    title: group.title,
-    count: group.questions.length
-  }));
-}
-
-export function getGroupById(groupId) {
-  return findGroup(readBank(), groupId);
-}
-
-export function addGroup(input) {
-  const bank = readBank();
-  if (findGroup(bank, input.id)) {
+export function addGroup(input, user) {
+  const id = String(input.id || "").trim();
+  const title = String(input.title || "").trim();
+  if (getBankRow(id)) {
     return { error: "Group id already exists" };
   }
 
-  const group = createGroup(input.id, input.title, []);
-  bank.groups.push(group);
-  writeBank(bank);
-  return { group };
+  const timestamp = nowIso();
+  db.prepare(`
+    INSERT INTO question_banks (id, title, owner_user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, title, user.id, timestamp, timestamp);
+
+  return { group: getGroupById(id, user) };
 }
 
-export function updateGroup(groupId, input) {
-  const bank = readBank();
-  const group = findGroup(bank, groupId);
-  if (!group) {
+export function updateGroup(groupId, input, user) {
+  const bank = getBankRow(groupId);
+  if (!bank) {
     return { error: "Group not found" };
   }
+  if (!canEditBank(user, bank)) {
+    return { error: "Forbidden" };
+  }
 
-  if (input.id && input.id !== groupId && findGroup(bank, input.id)) {
+  const nextId = input.id ? String(input.id).trim() : bank.id;
+  if (nextId !== groupId && getBankRow(nextId)) {
     return { error: "Group id already exists" };
   }
 
-  const nextId = input.id ? input.id : group.id;
-  group.id = nextId;
-  group.title = input.title ?? group.title;
-  writeBank(bank);
-  return { group };
+  db.prepare(`
+    UPDATE question_banks
+    SET id = ?, title = ?, updated_at = ?
+    WHERE id = ?
+  `).run(nextId, input.title ?? bank.title, nowIso(), groupId);
+
+  return { group: getGroupById(nextId, user) };
 }
 
-export function deleteGroup(groupId) {
-  const bank = readBank();
-  const groupIndex = bank.groups.findIndex((group) => group.id === groupId);
-  if (groupIndex === -1) {
+export function deleteGroup(groupId, user) {
+  const bank = getBankRow(groupId);
+  if (!bank) {
     return { error: "Group not found" };
   }
-
-  bank.groups.splice(groupIndex, 1);
-  if (!bank.groups.find((group) => group.id === NEW_GROUP_ID)) {
-    bank.groups.push(createGroup(NEW_GROUP_ID, "新题库", []));
+  if (!canEditBank(user, bank)) {
+    return { error: "Forbidden" };
   }
-  writeBank(bank);
+
+  db.prepare("DELETE FROM question_banks WHERE id = ?").run(groupId);
   return { ok: true };
 }
 
-export function listQuestions(groupId) {
-  const bank = readBank();
-  if (!groupId) {
-    return bank.groups.flatMap((group) =>
-      group.questions.map((question) => ({
-        ...question,
-        groupId: group.id,
-        groupTitle: group.title
-      }))
-    );
+export function listQuestions(groupId, user) {
+  const params = [];
+  let where = "";
+  if (groupId) {
+    where = "WHERE q.bank_id = ?";
+    params.push(groupId);
   }
 
-  const group = findGroup(bank, groupId);
-  if (!group) {
+  const rows = db
+    .prepare(`
+      SELECT q.*, b.title AS bank_title, b.owner_user_id, u.username AS owner_username
+      FROM questions q
+      JOIN question_banks b ON b.id = q.bank_id
+      LEFT JOIN users u ON u.id = b.owner_user_id
+      ${where}
+      ORDER BY q.created_at ASC
+    `)
+    .all(...params);
+
+  if (groupId && !getBankRow(groupId)) {
     return null;
   }
 
-  return group.questions.map((question) => ({
-    ...question,
-    groupId: group.id,
-    groupTitle: group.title
-  }));
+  return rows.map((row) => questionRowToQuestion(row, user));
 }
 
-export function getQuestionById(id) {
-  const bank = readBank();
-  const entry = findQuestionEntry(bank, id);
-  if (!entry) {
-    return null;
-  }
-
-  return {
-    ...entry.question,
-    groupId: entry.group.id,
-    groupTitle: entry.group.title
-  };
+export function getQuestionById(id, user) {
+  const row = getQuestionRow(id);
+  return row ? questionRowToQuestion(row, user) : null;
 }
 
-export function addQuestion(input) {
-  const bank = readBank();
-  if (findQuestionEntry(bank, input.id)) {
+export function addQuestion(input, user) {
+  const normalized = normalizeQuestionInput(input);
+  if (getQuestionRow(normalized.id)) {
     return { error: "Question id already exists" };
   }
 
-  const targetGroupId = input.groupId || NEW_GROUP_ID;
-  const group = findGroup(bank, targetGroupId);
-  if (!group) {
+  const bank = getBankRow(normalized.groupId);
+  if (!bank) {
     return { error: "Group not found" };
   }
-
-  const question = normalizeQuestion(input);
-  group.questions.push(question);
-  writeBank(bank);
-  return {
-    question: {
-      ...question,
-      groupId: group.id,
-      groupTitle: group.title
-    }
-  };
-}
-
-export function updateQuestion(questionId, input) {
-  const bank = readBank();
-  const entry = findQuestionEntry(bank, questionId);
-  if (!entry) {
-    return { error: "Question not found" };
+  if (!canEditBank(user, bank)) {
+    return { error: "Forbidden" };
   }
 
-  if (input.id && input.id !== questionId && findQuestionEntry(bank, input.id)) {
+  const timestamp = nowIso();
+  db.prepare(`
+    INSERT INTO questions (
+      id, bank_id, title, description, source_type, lat, lng, heading, pitch, fov,
+      pano_id, image_path, created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    normalized.id,
+    normalized.groupId,
+    normalized.title,
+    normalized.description,
+    normalized.sourceType,
+    normalized.lat,
+    normalized.lng,
+    normalized.heading,
+    normalized.pitch,
+    normalized.fov,
+    normalized.panoId,
+    normalized.imagePath,
+    timestamp,
+    timestamp
+  );
+
+  db.prepare("UPDATE question_banks SET updated_at = ? WHERE id = ?").run(timestamp, normalized.groupId);
+  return { question: getQuestionById(normalized.id, user) };
+}
+
+export function updateQuestion(questionId, input, user) {
+  const existing = getQuestionRow(questionId);
+  if (!existing) {
+    return { error: "Question not found" };
+  }
+  if (!canEditBank(user, existing)) {
+    return { error: "Forbidden" };
+  }
+
+  const normalized = normalizeQuestionInput(input, existing);
+  if (normalized.id !== questionId && getQuestionRow(normalized.id)) {
     return { error: "Question id already exists" };
   }
 
-  const nextGroupId = input.groupId ?? entry.group.id;
-  const nextGroup = findGroup(bank, nextGroupId);
-  if (!nextGroup) {
+  const nextBank = getBankRow(normalized.groupId);
+  if (!nextBank) {
     return { error: "Group not found" };
   }
-
-  const updatedQuestion = normalizeQuestion({
-    ...entry.question,
-    ...input,
-    streetView: {
-      ...entry.question.streetView,
-      ...input.streetView
-    }
-  });
-
-  entry.group.questions = entry.group.questions.filter((question) => question.id !== questionId);
-  nextGroup.questions.push(updatedQuestion);
-  writeBank(bank);
-
-  return {
-    question: {
-      ...updatedQuestion,
-      groupId: nextGroup.id,
-      groupTitle: nextGroup.title
-    }
-  };
-}
-
-export function deleteQuestion(questionId) {
-  const bank = readBank();
-  const entry = findQuestionEntry(bank, questionId);
-  if (!entry) {
-    return { error: "Question not found" };
+  if (!canEditBank(user, nextBank)) {
+    return { error: "Forbidden" };
   }
 
-  entry.group.questions = entry.group.questions.filter((question) => question.id !== questionId);
-  writeBank(bank);
+  const timestamp = nowIso();
+  db.prepare(`
+    UPDATE questions
+    SET id = ?, bank_id = ?, title = ?, description = ?, source_type = ?,
+      lat = ?, lng = ?, heading = ?, pitch = ?, fov = ?, pano_id = ?, image_path = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    normalized.id,
+    normalized.groupId,
+    normalized.title,
+    normalized.description,
+    normalized.sourceType,
+    normalized.lat,
+    normalized.lng,
+    normalized.heading,
+    normalized.pitch,
+    normalized.fov,
+    normalized.panoId,
+    normalized.imagePath,
+    timestamp,
+    questionId
+  );
+
+  db.prepare("UPDATE question_banks SET updated_at = ? WHERE id IN (?, ?)").run(timestamp, existing.bank_id, normalized.groupId);
+  return { question: getQuestionById(normalized.id, user) };
+}
+
+export function deleteQuestion(questionId, user) {
+  const existing = getQuestionRow(questionId);
+  if (!existing) {
+    return { error: "Question not found" };
+  }
+  if (!canEditBank(user, existing)) {
+    return { error: "Forbidden" };
+  }
+
+  db.prepare("DELETE FROM questions WHERE id = ?").run(questionId);
+  db.prepare("UPDATE question_banks SET updated_at = ? WHERE id = ?").run(nowIso(), existing.bank_id);
   return { ok: true };
 }

@@ -1,13 +1,18 @@
-import { useMemo, useState } from "react";
-import { createQuestion } from "../services/api.js";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createQuestion, fetchGroups, resolveApiAssetUrl, uploadQuestionImage } from "../services/api.js";
 import { buildStreetViewEmbedUrl } from "../components/StreetViewPanel.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const initialForm = {
   id: "",
   title: "",
   description: "",
-  groupId: "new",
-  streetViewUrl: ""
+  groupId: "",
+  streetViewUrl: "",
+  lat: "",
+  lng: "",
+  imageFile: null
 };
 
 function parseMaybeNumber(value, fallback = 0) {
@@ -66,62 +71,143 @@ function parseStreetViewUrl(rawUrl) {
   };
 }
 
-export default function CreateMapPage({ groups, token, onBack, onCreated }) {
+export default function CreateMapPage() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-  const [form, setForm] = useState(initialForm);
+  const [groups, setGroups] = useState([]);
+  const editableGroups = useMemo(() => groups.filter((group) => group.canEdit), [groups]);
+  const [mode, setMode] = useState("street_view");
+  const [form, setForm] = useState({ ...initialForm, groupId: "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+
+  useEffect(() => {
+    fetchGroups(token)
+      .then((items) => {
+        setGroups(items);
+        const editable = items.filter((g) => g.canEdit);
+        if (editable.length > 0) {
+          setForm((current) => {
+            if (editable.some((g) => g.id === current.groupId)) {
+              return current;
+            }
+            return { ...current, groupId: editable[0].id };
+          });
+        }
+      })
+      .catch((err) => {
+        if (err.status === 401) {
+          navigate("/login");
+        }
+      });
+  }, [token]);
+
+  useEffect(() => {
+    if (!editableGroups.length) {
+      return;
+    }
+
+    setForm((current) => {
+      if (editableGroups.some((group) => group.id === current.groupId)) {
+        return current;
+      }
+      return {
+        ...current,
+        groupId: editableGroups[0].id
+      };
+    });
+  }, [editableGroups]);
 
   const parsed = useMemo(() => parseStreetViewUrl(form.streetViewUrl), [form.streetViewUrl]);
+  const imagePreviewUrl = useMemo(
+    () => (form.imageFile ? URL.createObjectURL(form.imageFile) : resolveApiAssetUrl(uploadedImageUrl)),
+    [form.imageFile, uploadedImageUrl]
+  );
 
-  const preview = useMemo(() => {
+  const streetViewPreview = useMemo(() => {
     if (!form.id.trim() || !form.title.trim() || !parsed.streetView) {
       return null;
     }
-
     return {
       id: form.id.trim(),
       title: form.title.trim(),
       description: form.description.trim(),
       groupId: form.groupId,
+      sourceType: "street_view",
       streetView: parsed.streetView
     };
   }, [form.id, form.title, form.description, form.groupId, parsed.streetView]);
 
   const previewSrc = useMemo(() => {
-    if (!preview?.streetView || !googleMapsApiKey) {
+    if (!streetViewPreview?.streetView || !googleMapsApiKey) {
       return "";
     }
-    return buildStreetViewEmbedUrl(preview.streetView, googleMapsApiKey);
-  }, [preview, googleMapsApiKey]);
+    return buildStreetViewEmbedUrl(streetViewPreview.streetView, googleMapsApiKey);
+  }, [streetViewPreview, googleMapsApiKey]);
 
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { name, value, files } = event.target;
     setForm((current) => ({
       ...current,
-      [name]: value
+      [name]: files ? files[0] || null : value
     }));
+    if (name === "imageFile") {
+      setUploadedImageUrl("");
+    }
+  }
+
+  function resetForm() {
+    setForm({ ...initialForm, groupId: form.groupId || editableGroups[0]?.id || "" });
+    setUploadedImageUrl("");
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    if (!preview) {
-      setError(parsed.error || "请先填写完整信息");
-      return;
-    }
-
     setStatus("submitting");
     setError("");
     setCreated(null);
 
     try {
-      const question = await createQuestion(preview, token);
+      let payload;
+      if (mode === "street_view") {
+        if (!streetViewPreview) {
+          throw new Error(parsed.error || "请先填写完整街景题目信息");
+        }
+        payload = streetViewPreview;
+      } else {
+        const lat = Number.parseFloat(form.lat);
+        const lng = Number.parseFloat(form.lng);
+        if (!form.imageFile && !uploadedImageUrl) {
+          throw new Error("请先选择本地图片");
+        }
+        if (!form.description.trim()) {
+          throw new Error("请填写图片题地点介绍");
+        }
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          throw new Error("请填写有效经纬度");
+        }
+
+        const upload = uploadedImageUrl ? { imageUrl: uploadedImageUrl } : await uploadQuestionImage(form.imageFile, token);
+        setUploadedImageUrl(upload.imageUrl);
+        payload = {
+          id: form.id.trim(),
+          title: form.title.trim(),
+          description: form.description.trim(),
+          groupId: form.groupId,
+          sourceType: "image",
+          imageUrl: upload.imageUrl,
+          lat,
+          lng
+        };
+      }
+
+      const question = await createQuestion(payload, token);
       setCreated(question);
       setStatus("success");
-      setForm(initialForm);
-      onCreated?.(question);
+      resetForm();
     } catch (err) {
       setError(err.message);
       setStatus("idle");
@@ -134,27 +220,24 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
         <div className="editor-header">
           <div>
             <p className="hero-kicker">新增题目</p>
-            <h1>添加街景题目</h1>
-            <p className="hero-copy">
-              先去 Google Maps 打开街景，复制完整链接。系统会自动解析经纬度和视角参数。
-            </p>
+            <h1>添加题目</h1>
+            <p className="hero-copy">可通过 Google 街景链接创建街景题，也可以上传本地图片并手动填写坐标。</p>
           </div>
-          <button type="button" className="secondary-btn" onClick={onBack}>
+          <button type="button" className="secondary-btn" onClick={() => navigate("/")}>
             返回
           </button>
         </div>
 
-        <section className="card guide-card">
-          <div className="eyebrow">操作说明</div>
-          <ol className="guide-list">
-            <li>打开 `https://www.google.com.hk/maps` 并进入街景。</li>
-            <li>调整到你想给玩家展示的画面。</li>
-            <li>复制浏览器地址栏中的完整链接。</li>
-            <li>填写题目基本信息并粘贴链接，系统会自动生成题目数据。</li>
-          </ol>
-        </section>
-
         <form className="editor-form card" onSubmit={handleSubmit}>
+          <div className="auth-tabs editor-tabs">
+            <button className={mode === "street_view" ? "active" : ""} type="button" onClick={() => setMode("street_view")}>
+              街景链接
+            </button>
+            <button className={mode === "image" ? "active" : ""} type="button" onClick={() => setMode("image")}>
+              本地图片
+            </button>
+          </div>
+
           <div className="form-grid">
             <label>
               <span>题目 ID</span>
@@ -162,18 +245,12 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
             </label>
             <label>
               <span>题目标题</span>
-              <input
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                placeholder="东京十字路口"
-                required
-              />
+              <input name="title" value={form.title} onChange={handleChange} placeholder="东京十字路口" required />
             </label>
             <label>
-              <span>题库组</span>
+              <span>题库</span>
               <select name="groupId" value={form.groupId} onChange={handleChange}>
-                {groups.map((group) => (
+                {editableGroups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.title}
                   </option>
@@ -188,59 +265,77 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
                 onChange={handleChange}
                 rows={4}
                 placeholder="介绍这个地点的背景、辨识线索或文化信息"
+                required={mode === "image"}
               />
             </label>
-            <label className="form-grid-wide">
-              <span>Google Maps 街景链接</span>
-              <input
-                name="streetViewUrl"
-                value={form.streetViewUrl}
-                onChange={handleChange}
-                placeholder="https://www.google.com.hk/maps/..."
-                required
-              />
-            </label>
-          </div>
 
-          <div className="form-help">
-            <p>你现在只需要维护标题、介绍和街景链接，不需要再手填坐标和视角参数。</p>
-            {form.streetViewUrl && parsed.error ? <p className="error-text">{parsed.error}</p> : null}
-          </div>
-
-          <div className="preview-block">
-            <div className="eyebrow">街景预览</div>
-            {!googleMapsApiKey ? (
-              <div className="streetview-empty">
-                <strong>缺少 Google Maps API Key</strong>
-                <p>配置 `VITE_GOOGLE_MAPS_API_KEY` 后，这里会直接显示街景预览。</p>
-              </div>
-            ) : previewSrc ? (
-              <div className="streetview-frame editor-preview-frame">
-                <iframe
-                  title="街景预览"
-                  src={previewSrc}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
+            {mode === "street_view" ? (
+              <label className="form-grid-wide">
+                <span>Google Maps 街景链接</span>
+                <input
+                  name="streetViewUrl"
+                  value={form.streetViewUrl}
+                  onChange={handleChange}
+                  placeholder="https://www.google.com.hk/maps/..."
+                  required
                 />
-              </div>
+              </label>
             ) : (
-              <div className="streetview-empty">
-                <strong>等待预览</strong>
-                <p>粘贴一个有效的街景链接后，这里会显示保存前的画面预览。</p>
-              </div>
+              <>
+                <label>
+                  <span>纬度</span>
+                  <input name="lat" value={form.lat} onChange={handleChange} placeholder="30.53786" required />
+                </label>
+                <label>
+                  <span>经度</span>
+                  <input name="lng" value={form.lng} onChange={handleChange} placeholder="114.36255" required />
+                </label>
+                <label className="form-grid-wide">
+                  <span>本地图片</span>
+                  <input name="imageFile" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleChange} required />
+                </label>
+              </>
             )}
           </div>
 
-          <div className="preview-block">
-            <div className="eyebrow">预览 JSON</div>
-            <pre className="json-preview">
-              {preview ? JSON.stringify(preview, null, 2) : "粘贴一个有效的 Google Maps 街景链接后，这里会生成题目 JSON。"}
-            </pre>
-          </div>
+          {mode === "street_view" ? (
+            <div className="preview-block">
+              <div className="eyebrow">街景预览</div>
+              {!googleMapsApiKey ? (
+                <div className="streetview-empty">
+                  <strong>缺少 Google Maps API Key</strong>
+                  <p>配置 `VITE_GOOGLE_MAPS_API_KEY` 后，这里会直接显示街景预览。</p>
+                </div>
+              ) : previewSrc ? (
+                <div className="streetview-frame editor-preview-frame">
+                  <iframe title="街景预览" src={previewSrc} allowFullScreen loading="lazy" />
+                </div>
+              ) : (
+                <div className="streetview-empty">
+                  <strong>等待预览</strong>
+                  <p>粘贴一个有效的街景链接后，这里会显示保存前的画面预览。</p>
+                </div>
+              )}
+              {form.streetViewUrl && parsed.error ? <p className="error-text">{parsed.error}</p> : null}
+            </div>
+          ) : (
+            <div className="preview-block">
+              <div className="eyebrow">图片预览</div>
+              {imagePreviewUrl ? (
+                <div className="streetview-frame editor-preview-frame image-question-frame">
+                  <img src={imagePreviewUrl} alt="题目预览" />
+                </div>
+              ) : (
+                <div className="streetview-empty">
+                  <strong>等待图片</strong>
+                  <p>选择 jpg、png 或 webp 图片后，这里会显示保存前的预览。</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="form-actions">
-            <button className="primary-btn" type="submit" disabled={status === "submitting" || !preview}>
+            <button className="primary-btn" type="submit" disabled={status === "submitting"}>
               {status === "submitting" ? "保存中..." : "保存题目"}
             </button>
             {error ? <p className="error-text">{error}</p> : null}

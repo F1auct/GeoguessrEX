@@ -1,4 +1,5 @@
 const API_BASE = "http://localhost:3001/api";
+const API_ORIGIN = "http://localhost:3001";
 
 async function readJson(response, fallbackMessage) {
   const data = await response.json().catch(() => ({}));
@@ -30,6 +31,16 @@ export async function registerAccount(payload) {
   });
 
   return readJson(response);
+}
+
+export function resolveApiAssetUrl(path) {
+  if (!path) {
+    return "";
+  }
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  return `${API_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 export async function loginAccount(payload) {
@@ -148,6 +159,19 @@ export async function deleteQuestion(questionId, token) {
     const data = await response.json().catch(() => null);
     throw new Error(data?.error || "删除题目失败");
   }
+}
+
+export async function uploadQuestionImage(file, token) {
+  const body = new FormData();
+  body.append("image", file);
+
+  const response = await fetch(`${API_BASE}/uploads/images`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body
+  });
+
+  return readJson(response, "上传图片失败");
 }
 
 // ── Game ──

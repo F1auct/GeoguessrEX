@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import AmapGuessMap from "../components/AmapGuessMap.jsx";
 import StreetViewPanel from "../components/StreetViewPanel.jsx";
 import AmapResultMap from "../components/AmapResultMap.jsx";
 import ResultPanel from "../components/ResultPanel.jsx";
-import { fetchQuestions, submitAnswer } from "../services/api.js";
+import { fetchGroups, fetchQuestions, submitAnswer } from "../services/api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
-export default function GamePage({ group, token, user, onBack, onLogout, onUnauthorized }) {
+export default function GamePage() {
+  const { groupId } = useParams();
+  const { token, user, logout } = useAuth();
+  const navigate = useNavigate();
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
   const amapApiKey = import.meta.env.VITE_AMAP_API_KEY || "";
   const [questions, setQuestions] = useState([]);
@@ -15,9 +20,15 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
   const [mapExpanded, setMapExpanded] = useState(true);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
+  const [groupTitle, setGroupTitle] = useState("");
+
+  function handleUnauthorized() {
+    logout();
+    navigate("/login");
+  }
 
   useEffect(() => {
-    if (!group?.id) {
+    if (!groupId) {
       return;
     }
 
@@ -26,20 +37,25 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
     setResult(null);
     setQuestionIndex(0);
 
-    fetchQuestions(group.id, token)
-      .then((items) => {
+    Promise.all([
+      fetchQuestions(groupId, token),
+      fetchGroups(token)
+    ])
+      .then(([items, allGroups]) => {
+        const matchedGroup = allGroups.find((g) => g.id === groupId);
+        setGroupTitle(matchedGroup?.title || groupId);
         setQuestions(items);
         setStatus("ready");
       })
       .catch((err) => {
         if (err.status === 401) {
-          onUnauthorized();
+          handleUnauthorized();
           return;
         }
         setError(err.message);
         setStatus("error");
       });
-  }, [group?.id, token, onUnauthorized]);
+  }, [groupId, token]);
 
   const question = useMemo(
     () => questions[questionIndex] ?? null,
@@ -66,7 +82,7 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
       setStatus("result");
     } catch (err) {
       if (err.status === 401) {
-        onUnauthorized();
+        handleUnauthorized();
         return;
       }
       setError(err.message);
@@ -100,7 +116,7 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
     return (
       <main className="status-shell">
         当前题库组没有题目。
-        <button className="secondary-btn status-btn" onClick={onBack}>
+        <button className="secondary-btn status-btn" onClick={() => navigate("/")}>
           返回首页
         </button>
       </main>
@@ -116,15 +132,15 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
 
       <div className="hud-top">
         <div className="hud-chip hud-chip-user">
-          <span>玩家</span>
+          <span>{user?.role === "admin" ? "管理员" : "玩家"}</span>
           <strong>{user?.username || "探险者"}</strong>
-          <button type="button" onClick={onLogout}>
+          <button type="button" onClick={() => { logout(); navigate("/login"); }}>
             登出
           </button>
         </div>
         <div className="hud-chip">
           <span>题库组</span>
-          <strong>{group.title}</strong>
+          <strong>{groupTitle}</strong>
         </div>
         <div className="hud-chip">
           <span>题目</span>
@@ -139,7 +155,7 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
       </div>
 
       <div className="hud-actions">
-        <button className="secondary-btn" onClick={onBack}>
+        <button className="secondary-btn" onClick={() => navigate("/")}>
           返回首页
         </button>
       </div>
@@ -186,7 +202,7 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
           <h1>{result.title}</h1>
           <p className="hero-copy">查看你的猜测和正确地点，并阅读这个地点的介绍。</p>
         </div>
-        <button className="secondary-btn" onClick={onBack}>
+        <button className="secondary-btn" onClick={() => navigate("/")}>
           返回首页
         </button>
       </section>
