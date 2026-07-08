@@ -14,15 +14,19 @@ function buildStreetViewUrl(streetView, apiKey) {
   return `https://www.google.com/maps/embed/v1/streetview?${params.toString()}`;
 }
 
+export function buildStreetViewEmbedUrl(streetView, apiKey) {
+  return buildStreetViewUrl(streetView, apiKey);
+}
+
 export default function StreetViewPanel({ question, apiKey, fullscreen = false }) {
   if (!apiKey) {
     return (
       <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
-        <div className="eyebrow">Street View</div>
+        <div className="eyebrow">街景</div>
         <h1>{question.title}</h1>
         <div className="streetview-empty">
-          <strong>Missing Google Maps API key</strong>
-          <p>Set `VITE_GOOGLE_MAPS_API_KEY` in `apps/web/.env.local` to load Street View.</p>
+          <strong>缺少 Google Maps API Key</strong>
+          <p>请在 `apps/web/.env.local` 中配置 `VITE_GOOGLE_MAPS_API_KEY`。</p>
         </div>
       </section>
     );
@@ -32,7 +36,7 @@ export default function StreetViewPanel({ question, apiKey, fullscreen = false }
 
   return (
     <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
-      {!fullscreen ? <div className="eyebrow">Street View</div> : null}
+      {!fullscreen ? <div className="eyebrow">街景</div> : null}
       {!fullscreen ? <h1>{question.title}</h1> : null}
       <div className="streetview-frame">
         <iframe

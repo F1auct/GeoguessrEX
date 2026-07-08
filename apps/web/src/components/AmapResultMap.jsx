@@ -103,8 +103,8 @@ export default function AmapResultMap({ result, apiKey }) {
     return (
       <section className="card map-card result-map-card amap-card-empty">
         <div className="streetview-empty">
-          <strong>Missing AMap API key</strong>
-          <p>Set `VITE_AMAP_API_KEY` in `apps/web/.env.local` to load the result map.</p>
+          <strong>缺少高德地图 Key</strong>
+          <p>请在 `apps/web/.env.local` 中配置 `VITE_AMAP_API_KEY`。</p>
         </div>
       </section>
     );
@@ -114,7 +114,7 @@ export default function AmapResultMap({ result, apiKey }) {
     return (
       <section className="card map-card result-map-card amap-card-empty">
         <div className="streetview-empty">
-          <strong>Failed to load AMap</strong>
+          <strong>高德地图加载失败</strong>
           <p>{loadError}</p>
         </div>
       </section>
@@ -123,7 +123,7 @@ export default function AmapResultMap({ result, apiKey }) {
 
   return (
     <section className="card map-card result-map-card amap-card">
-      <div className="eyebrow">Result Map</div>
+      <div className="eyebrow">结果地图</div>
       <div ref={containerRef} className="map-view amap-view" />
     </section>
   );

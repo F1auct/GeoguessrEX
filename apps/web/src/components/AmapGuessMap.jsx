@@ -94,8 +94,8 @@ export default function AmapGuessMap({ value, onChange, apiKey }) {
     return (
       <section className="card map-card mini-map-card amap-card-empty">
         <div className="streetview-empty">
-          <strong>Missing AMap API key</strong>
-          <p>Set `VITE_AMAP_API_KEY` in `apps/web/.env.local` to load the minimap.</p>
+          <strong>缺少高德地图 Key</strong>
+          <p>请在 `apps/web/.env.local` 中配置 `VITE_AMAP_API_KEY` 以加载小地图。</p>
         </div>
       </section>
     );
@@ -105,7 +105,7 @@ export default function AmapGuessMap({ value, onChange, apiKey }) {
     return (
       <section className="card map-card mini-map-card amap-card-empty">
         <div className="streetview-empty">
-          <strong>Failed to load AMap</strong>
+          <strong>高德地图加载失败</strong>
           <p>{loadError}</p>
         </div>
       </section>

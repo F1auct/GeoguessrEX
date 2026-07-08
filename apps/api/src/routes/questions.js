@@ -1,20 +1,241 @@
-import { getQuestionById, listQuestions } from "../services/questionBank.js";
+import {
+  addGroup,
+  addQuestion,
+  deleteGroup,
+  deleteQuestion,
+  getGroupById,
+  getQuestionById,
+  listGroups,
+  listQuestions,
+  updateGroup,
+  updateQuestion
+} from "../services/questionBank.js";
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function validateGroupPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "请求体不能为空";
+  }
+
+  if (!payload.id || typeof payload.id !== "string") {
+    return "题库组 id 必填";
+  }
+
+  if (!payload.title || typeof payload.title !== "string") {
+    return "题库组名称必填";
+  }
+
+  return null;
+}
+
+function validateQuestionPayload(payload, { partial = false } = {}) {
+  if (!payload || typeof payload !== "object") {
+    return "请求体不能为空";
+  }
+
+  if (!partial || payload.id !== undefined) {
+    if (!payload.id || typeof payload.id !== "string") {
+      return "题目 id 必填";
+    }
+  }
+
+  if (!partial || payload.title !== undefined) {
+    if (!payload.title || typeof payload.title !== "string") {
+      return "题目标题必填";
+    }
+  }
+
+  if (!partial || payload.description !== undefined) {
+    if (payload.description !== undefined && typeof payload.description !== "string") {
+      return "题目描述必须为字符串";
+    }
+  }
+
+  if (!partial || payload.streetView !== undefined) {
+    if (!payload.streetView || typeof payload.streetView !== "object") {
+      return "streetView 必填";
+    }
+
+    const requiredNumericFields = ["lat", "lng", "heading", "pitch", "fov"];
+    for (const field of requiredNumericFields) {
+      if (!isFiniteNumber(payload.streetView[field])) {
+        return `streetView.${field} 必须是数字`;
+      }
+    }
+
+    if (
+      payload.streetView.panoId !== null &&
+      payload.streetView.panoId !== undefined &&
+      typeof payload.streetView.panoId !== "string"
+    ) {
+      return "streetView.panoId 必须是字符串或 null";
+    }
+  }
+
+  return null;
+}
 
 export function registerQuestionRoutes(app) {
-  app.get("/api/questions", (_req, res) => {
-    res.json({ items: listQuestions() });
+  app.get("/api/groups", (_req, res) => {
+    res.json({ items: listGroups() });
+  });
+
+  app.post("/api/groups", (req, res) => {
+    const error = validateGroupPayload(req.body);
+    if (error) {
+      return res.status(400).json({ error });
+    }
+
+    const result = addGroup({
+      id: req.body.id.trim(),
+      title: req.body.title.trim()
+    });
+
+    if (result.error) {
+      return res.status(409).json({ error: result.error });
+    }
+
+    return res.status(201).json(result.group);
+  });
+
+  app.put("/api/groups/:id", (req, res) => {
+    const title = req.body?.title;
+    const id = req.body?.id;
+    if ((title !== undefined && typeof title !== "string") || (id !== undefined && typeof id !== "string")) {
+      return res.status(400).json({ error: "题库组字段无效" });
+    }
+
+    const result = updateGroup(req.params.id, {
+      id: id?.trim(),
+      title: title?.trim()
+    });
+
+    if (result.error === "Group not found") {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+    if (result.error) {
+      return res.status(409).json({ error: result.error });
+    }
+
+    return res.json(result.group);
+  });
+
+  app.delete("/api/groups/:id", (req, res) => {
+    const result = deleteGroup(req.params.id);
+    if (result.error) {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+    return res.status(204).end();
+  });
+
+  app.get("/api/groups/:id/questions", (req, res) => {
+    const group = getGroupById(req.params.id);
+    if (!group) {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+
+    return res.json({
+      group: {
+        id: group.id,
+        title: group.title
+      },
+      items: listQuestions(req.params.id)
+    });
+  });
+
+  app.get("/api/questions", (req, res) => {
+    const groupId = typeof req.query.groupId === "string" ? req.query.groupId : "";
+    const items = listQuestions(groupId);
+    if (groupId && items === null) {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+    res.json({ items: items ?? [] });
   });
 
   app.get("/api/questions/:id", (req, res) => {
     const question = getQuestionById(req.params.id);
     if (!question) {
-      return res.status(404).json({ error: "Question not found" });
+      return res.status(404).json({ error: "题目不存在" });
     }
 
-    return res.json({
-      id: question.id,
-      title: question.title,
-      streetView: question.streetView
+    return res.json(question);
+  });
+
+  app.post("/api/questions", (req, res) => {
+    const error = validateQuestionPayload(req.body);
+    if (error) {
+      return res.status(400).json({ error });
+    }
+
+    const result = addQuestion({
+      id: req.body.id.trim(),
+      title: req.body.title.trim(),
+      description: req.body.description?.trim() ?? "",
+      groupId: req.body.groupId?.trim() || "new",
+      streetView: {
+        lat: req.body.streetView.lat,
+        lng: req.body.streetView.lng,
+        heading: req.body.streetView.heading,
+        pitch: req.body.streetView.pitch,
+        fov: req.body.streetView.fov,
+        panoId: req.body.streetView.panoId ?? null
+      }
     });
+
+    if (result.error === "Group not found") {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+    if (result.error) {
+      return res.status(409).json({ error: result.error });
+    }
+
+    return res.status(201).json(result.question);
+  });
+
+  app.put("/api/questions/:id", (req, res) => {
+    const error = validateQuestionPayload(req.body, { partial: true });
+    if (error) {
+      return res.status(400).json({ error });
+    }
+
+    const result = updateQuestion(req.params.id, {
+      id: req.body.id?.trim(),
+      title: req.body.title?.trim(),
+      description: req.body.description?.trim(),
+      groupId: req.body.groupId?.trim(),
+      streetView: req.body.streetView
+        ? {
+            lat: req.body.streetView.lat,
+            lng: req.body.streetView.lng,
+            heading: req.body.streetView.heading,
+            pitch: req.body.streetView.pitch,
+            fov: req.body.streetView.fov,
+            panoId: req.body.streetView.panoId ?? null
+          }
+        : undefined
+    });
+
+    if (result.error === "Question not found") {
+      return res.status(404).json({ error: "题目不存在" });
+    }
+    if (result.error === "Group not found") {
+      return res.status(404).json({ error: "题库组不存在" });
+    }
+    if (result.error) {
+      return res.status(409).json({ error: result.error });
+    }
+
+    return res.json(result.question);
+  });
+
+  app.delete("/api/questions/:id", (req, res) => {
+    const result = deleteQuestion(req.params.id);
+    if (result.error) {
+      return res.status(404).json({ error: "题目不存在" });
+    }
+    return res.status(204).end();
   });
 }
