@@ -5,7 +5,7 @@ import AmapResultMap from "../components/AmapResultMap.jsx";
 import ResultPanel from "../components/ResultPanel.jsx";
 import { fetchQuestions, submitAnswer } from "../services/api.js";
 
-export default function GamePage({ group, onBack }) {
+export default function GamePage({ group, token, user, onBack, onLogout, onUnauthorized }) {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
   const amapApiKey = import.meta.env.VITE_AMAP_API_KEY || "";
   const [questions, setQuestions] = useState([]);
@@ -26,16 +26,20 @@ export default function GamePage({ group, onBack }) {
     setResult(null);
     setQuestionIndex(0);
 
-    fetchQuestions(group.id)
+    fetchQuestions(group.id, token)
       .then((items) => {
         setQuestions(items);
         setStatus("ready");
       })
       .catch((err) => {
+        if (err.status === 401) {
+          onUnauthorized();
+          return;
+        }
         setError(err.message);
         setStatus("error");
       });
-  }, [group?.id]);
+  }, [group?.id, token, onUnauthorized]);
 
   const question = useMemo(
     () => questions[questionIndex] ?? null,
@@ -51,13 +55,20 @@ export default function GamePage({ group, onBack }) {
     setError("");
 
     try {
-      const response = await submitAnswer({
-        questionId: question.id,
-        guess
-      });
+      const response = await submitAnswer(
+        {
+          questionId: question.id,
+          guess
+        },
+        token
+      );
       setResult(response);
       setStatus("result");
     } catch (err) {
+      if (err.status === 401) {
+        onUnauthorized();
+        return;
+      }
       setError(err.message);
       setStatus("ready");
     }
@@ -104,6 +115,13 @@ export default function GamePage({ group, onBack }) {
       <div className="streetview-vignette" />
 
       <div className="hud-top">
+        <div className="hud-chip hud-chip-user">
+          <span>玩家</span>
+          <strong>{user?.username || "探险者"}</strong>
+          <button type="button" onClick={onLogout}>
+            登出
+          </button>
+        </div>
         <div className="hud-chip">
           <span>题库组</span>
           <strong>{group.title}</strong>

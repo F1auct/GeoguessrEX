@@ -33,7 +33,7 @@ function toNumber(value) {
   return Number.parseFloat(value);
 }
 
-export default function ManagePage({ onBack }) {
+export default function ManagePage({ token, onBack }) {
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -45,7 +45,7 @@ export default function ManagePage({ onBack }) {
   const [status, setStatus] = useState("loading");
 
   async function loadGroups(nextGroupId = "") {
-    const items = await fetchGroups();
+    const items = await fetchGroups(token);
     setGroups(items);
     const targetGroupId = nextGroupId || selectedGroupId || items[0]?.id || "";
     setSelectedGroupId(targetGroupId);
@@ -57,7 +57,7 @@ export default function ManagePage({ onBack }) {
       setQuestions([]);
       return;
     }
-    const data = await fetchQuestionsByGroup(groupId);
+    const data = await fetchQuestionsByGroup(groupId, token);
     setQuestions(data.items);
   }
 
@@ -114,12 +114,12 @@ export default function ManagePage({ onBack }) {
         await updateGroup(editingGroupId, {
           id: groupForm.id.trim(),
           title: groupForm.title.trim()
-        });
+        }, token);
       } else {
         await createGroup({
           id: groupForm.id.trim(),
           title: groupForm.title.trim()
-        });
+        }, token);
       }
 
       const nextId = groupForm.id.trim();
@@ -141,7 +141,7 @@ export default function ManagePage({ onBack }) {
 
     setError("");
     try {
-      await deleteGroup(group.id);
+      await deleteGroup(group.id, token);
       const { targetGroupId } = await loadGroups();
       await loadQuestions(targetGroupId);
     } catch (err) {
@@ -170,9 +170,9 @@ export default function ManagePage({ onBack }) {
 
     try {
       if (editingQuestionId) {
-        await updateQuestion(editingQuestionId, payload);
+        await updateQuestion(editingQuestionId, payload, token);
       } else {
-        await createQuestion(payload);
+        await createQuestion(payload, token);
       }
 
       await loadGroups(questionForm.groupId);
@@ -217,7 +217,7 @@ export default function ManagePage({ onBack }) {
 
     setError("");
     try {
-      await deleteQuestion(question.id);
+      await deleteQuestion(question.id, token);
       await loadGroups(selectedGroupId);
       await loadQuestions(selectedGroupId);
     } catch (err) {

@@ -10,6 +10,7 @@ import {
   updateGroup,
   updateQuestion
 } from "../services/questionBank.js";
+import { requireAuth } from "../middleware/auth.js";
 
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
@@ -146,7 +147,7 @@ export function registerQuestionRoutes(app) {
     });
   });
 
-  app.get("/api/questions", (req, res) => {
+  app.get("/api/questions", requireAuth, (req, res) => {
     const groupId = typeof req.query.groupId === "string" ? req.query.groupId : "";
     const items = listQuestions(groupId);
     if (groupId && items === null) {
@@ -155,7 +156,7 @@ export function registerQuestionRoutes(app) {
     res.json({ items: items ?? [] });
   });
 
-  app.get("/api/questions/:id", (req, res) => {
+  app.get("/api/questions/:id", requireAuth, (req, res) => {
     const question = getQuestionById(req.params.id);
     if (!question) {
       return res.status(404).json({ error: "题目不存在" });
