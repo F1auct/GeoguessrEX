@@ -27,6 +27,9 @@ export function gradeAnswer(questionId, guess) {
   return {
     questionId: question.id,
     title: question.title,
+    description: question.description,
+    groupId: question.groupId,
+    groupTitle: question.groupTitle,
     guess,
     answer: {
       lat: question.streetView.lat,

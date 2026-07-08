@@ -1,38 +1,81 @@
-[
-  {
-    "id": "q1",
-    "title": "Nordic Harbor",
-    "streetView": {
-      "lat": 59.9139,
-      "lng": 10.7522,
-      "heading": 120,
-      "pitch": 0,
-      "fov": 100,
-      "panoId": null
+{
+  "groups": [
+    {
+      "id": "default",
+      "title": "默认题库",
+      "questions": [
+        {
+          "id": "q1",
+          "title": "Nordic Harbor",
+          "description": "挪威奥斯陆港口附近的海港街景，常见北欧海港城市的建筑和水岸线索。",
+          "streetView": {
+            "lat": 59.9139,
+            "lng": 10.7522,
+            "heading": 120,
+            "pitch": 0,
+            "fov": 100,
+            "panoId": null
+          }
+        },
+        {
+          "id": "q2",
+          "title": "Tokyo Street",
+          "description": "东京街头的典型城市道路，招牌、车道和建筑密度都具有明显日本都市特征。",
+          "streetView": {
+            "lat": 35.6762,
+            "lng": 139.6503,
+            "heading": 210,
+            "pitch": 0,
+            "fov": 100,
+            "panoId": null
+          }
+        },
+        {
+          "id": "q3",
+          "title": "Andean City",
+          "description": "安第斯山区城市街景，地形起伏和城市布局能帮助判断南美高海拔区域。",
+          "streetView": {
+            "lat": -13.5319,
+            "lng": -71.9675,
+            "heading": 40,
+            "pitch": 0,
+            "fov": 100,
+            "panoId": null
+          }
+        },
+        {
+          "id": "q4",
+          "title": "place",
+          "description": "",
+          "streetView": {
+            "lat": 1.9753205,
+            "lng": 103.2315352,
+            "heading": 0,
+            "pitch": 0,
+            "fov": 100,
+            "panoId": "ZRrIw00xpYKihC2ZYvhPjA"
+          }
+        }
+      ]
+    },
+    {
+      "id": "new",
+      "title": "新题库",
+      "questions": [
+        {
+          "id": "q5",
+          "title": "sdadd",
+          "description": "adadd",
+          "streetView": {
+            "lat": 27.246289,
+            "lng": 110.442568,
+            "heading": 0,
+            "pitch": 0,
+            "fov": 100,
+            "panoId": null
+          }
+        }
+      ]
     }
-  },
-  {
-    "id": "q2",
-    "title": "Tokyo Street",
-    "streetView": {
-      "lat": 35.6762,
-      "lng": 139.6503,
-      "heading": 210,
-      "pitch": 0,
-      "fov": 100,
-      "panoId": null
-    }
-  },
-  {
-    "id": "q3",
-    "title": "Andean City",
-    "streetView": {
-      "lat": -13.5319,
-      "lng": -71.9675,
-      "heading": 40,
-      "pitch": 0,
-      "fov": 100,
-      "panoId": null
-    }
-  }
-]
+  ]
+}
