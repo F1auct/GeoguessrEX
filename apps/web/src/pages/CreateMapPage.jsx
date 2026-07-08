@@ -66,7 +66,7 @@ function parseStreetViewUrl(rawUrl) {
   };
 }
 
-export default function CreateMapPage({ groups, onBack, onCreated }) {
+export default function CreateMapPage({ groups, token, onBack, onCreated }) {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState("idle");
@@ -117,7 +117,7 @@ export default function CreateMapPage({ groups, onBack, onCreated }) {
     setCreated(null);
 
     try {
-      const question = await createQuestion(preview);
+      const question = await createQuestion(preview, token);
       setCreated(question);
       setStatus("success");
       setForm(initialForm);

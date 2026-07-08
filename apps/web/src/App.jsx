@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import AuthPage from "./pages/AuthPage.jsx";
 import GamePage from "./pages/GamePage.jsx";
 import CreateMapPage from "./pages/CreateMapPage.jsx";
 import ManagePage from "./pages/ManagePage.jsx";
-import { fetchGroups } from "./services/api.js";
+import { fetchGroups, fetchCurrentUser } from "./services/api.js";
+
+const tokenStorageKey = "geoguesr.authToken";
 
 function HomePage({ groups, selectedGroupId, onSelectGroup, onStart, onOpenCreate, onOpenManage }) {
   return (
@@ -50,25 +53,91 @@ export default function App() {
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
 
+  const [session, setSession] = useState({
+    status: "checking",
+    token: localStorage.getItem(tokenStorageKey) || "",
+    user: null
+  });
+
+  useEffect(() => {
+    if (!session.token) {
+      setSession({ status: "guest", token: "", user: null });
+      return;
+    }
+
+    let isCurrent = true;
+
+    fetchCurrentUser(session.token)
+      .then(({ user }) => {
+        if (isCurrent) {
+          setSession((current) => ({
+            ...current,
+            status: "authenticated",
+            user
+          }));
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem(tokenStorageKey);
+        if (isCurrent) {
+          setSession({ status: "guest", token: "", user: null });
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [session.token]);
+
+  function handleAuthenticated({ token, user }) {
+    localStorage.setItem(tokenStorageKey, token);
+    setSession({
+      status: "authenticated",
+      token,
+      user
+    });
+  }
+
+  function handleLogout() {
+    localStorage.removeItem(tokenStorageKey);
+    setSession({ status: "guest", token: "", user: null });
+  }
+
+  function handleUnauthorized() {
+    handleLogout();
+  }
+
   async function loadGroups() {
-    const items = await fetchGroups();
+    const items = await fetchGroups(session.token);
     setGroups(items);
     setSelectedGroupId((current) => current || items[0]?.id || "");
     return items;
   }
 
   useEffect(() => {
+    if (session.status !== "authenticated") return;
+
     loadGroups()
       .then(() => {
         setStatus("ready");
       })
       .catch((err) => {
+        if (err.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         setError(err.message);
         setStatus("error");
       });
-  }, []);
+  }, [session.status]);
 
-  const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
+  if (session.status === "checking") {
+    return <div className="status-shell">Checking session...</div>;
+  }
+
+  if (session.status !== "authenticated") {
+    return <AuthPage onAuthenticated={handleAuthenticated} />;
+  }
 
   if (status === "loading") {
     return <div className="status-shell">正在加载首页...</div>;
@@ -78,10 +147,13 @@ export default function App() {
     return <div className="status-shell">加载失败：{error}</div>;
   }
 
+  const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
+
   if (page === "create") {
     return (
       <CreateMapPage
         groups={groups}
+        token={session.token}
         onBack={async () => {
           await loadGroups();
           setPage("home");
@@ -94,6 +166,7 @@ export default function App() {
   if (page === "manage") {
     return (
       <ManagePage
+        token={session.token}
         onBack={async () => {
           await loadGroups();
           setPage("home");
@@ -103,7 +176,16 @@ export default function App() {
   }
 
   if (page === "game" && selectedGroup) {
-    return <GamePage group={selectedGroup} onBack={() => setPage("home")} />;
+    return (
+      <GamePage
+        group={selectedGroup}
+        token={session.token}
+        user={session.user}
+        onBack={() => setPage("home")}
+        onLogout={handleLogout}
+        onUnauthorized={handleUnauthorized}
+      />
+    );
   }
 
   return (

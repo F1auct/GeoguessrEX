@@ -106,8 +106,105 @@ textarea {
 .manage-header h1,
 .result-header h1 {
   margin: 0;
-  font-size: clamp(2.8rem, 7vw, 5.8rem);
-  line-height: 0.94;
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.92;
+  max-width: 700px;
+}
+
+.landing-btn {
+  margin-top: 28px;
+}
+
+.auth-shell {
+  align-items: center;
+}
+
+.auth-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 36px;
+  align-items: center;
+}
+
+.auth-form {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 248, 239, 0.68);
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(19, 26, 30, 0.06);
+}
+
+.auth-tabs button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  color: #fff8ef;
+  background: var(--green);
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-form label span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.auth-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 13px 14px;
+  color: var(--ink);
+  background: rgba(251, 246, 238, 0.86);
+  font: inherit;
+  outline: none;
+}
+
+.auth-form input:focus {
+  border-color: rgba(180, 77, 40, 0.58);
+  box-shadow: 0 0 0 4px rgba(180, 77, 40, 0.12);
+}
+
+.auth-error {
+  margin: 0;
+}
+
+.auth-submit {
+  width: 100%;
+}
+
+.hero-panel {
+  max-width: 920px;
+  margin: 0 auto 24px;
+  padding: 24px 28px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 248, 239, 0.74);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
 }
 
 .hero-kicker,
@@ -338,6 +435,16 @@ textarea {
 .hud-chip strong {
   display: block;
   font-size: 1rem;
+}
+
+.hud-chip-user button {
+  margin-top: 10px;
+  border: 1px solid rgba(19, 26, 30, 0.12);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: var(--ink);
+  background: rgba(255, 248, 239, 0.62);
+  cursor: pointer;
 }
 
 .hud-chip-accent {
@@ -615,6 +722,10 @@ textarea {
   .editor-header,
   .manage-header {
     flex-direction: column;
+  }
+
+  .auth-panel {
+    grid-template-columns: 1fr;
   }
 }
 
