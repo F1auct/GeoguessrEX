@@ -1,12 +1,8 @@
 import crypto from "crypto";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import { db } from "./database.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const usersPath = path.resolve(__dirname, "../data/users.json");
 const tokenSecret = process.env.AUTH_SECRET || "geoguesr-dev-auth-secret";
+const adminRegisterCode = process.env.ADMIN_REGISTER_CODE || "";
 const passwordIterations = 120000;
 const passwordKeyLength = 64;
 const tokenTtlMs = 1000 * 60 * 60 * 24 * 7;
@@ -15,30 +11,24 @@ function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function publicUser(user) {
+function publicUser(row) {
   return {
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    createdAt: user.createdAt
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    role: row.role,
+    createdAt: row.created_at
   };
 }
 
-async function readUsers() {
-  try {
-    const data = await readFile(usersPath, "utf8");
-    return JSON.parse(data);
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      return [];
-    }
-    throw err;
-  }
-}
-
-async function writeUsers(users) {
-  await mkdir(path.dirname(usersPath), { recursive: true });
-  await writeFile(usersPath, `${JSON.stringify(users, null, 2)}\n`, "utf8");
+function passwordFromRow(row) {
+  return {
+    hash: row.password_hash,
+    salt: row.password_salt,
+    iterations: row.password_iterations,
+    keyLength: row.password_key_length,
+    digest: row.password_digest
+  };
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -122,70 +112,102 @@ function validateRegistration({ username, email, password }) {
   return "";
 }
 
-export async function registerUser({ username, email, password }) {
+export function registerUser({ username, email, password, adminCode }) {
   const validationError = validateRegistration({ username, email, password });
   if (validationError) {
     return { status: 400, error: validationError };
   }
 
-  const users = await readUsers();
   const usernameKey = normalize(username);
   const emailKey = normalize(email);
 
-  if (users.some((user) => user.usernameKey === usernameKey)) {
+  const existing = db
+    .prepare("SELECT id, username_key, email_key FROM users WHERE username_key = ? OR email_key = ?")
+    .get(usernameKey, emailKey);
+
+  if (existing?.username_key === usernameKey) {
     return { status: 409, error: "Username is already registered." };
   }
-  if (users.some((user) => user.emailKey === emailKey)) {
+  if (existing?.email_key === emailKey) {
     return { status: 409, error: "Email is already registered." };
   }
 
+  const wantsAdmin = String(adminCode || "").trim().length > 0;
+  if (wantsAdmin && (!adminRegisterCode || String(adminCode).trim() !== adminRegisterCode)) {
+    return { status: 403, error: "Invalid admin registration code." };
+  }
+
+  const passwordHash = hashPassword(String(password));
   const user = {
     id: crypto.randomUUID(),
     username: String(username).trim(),
     usernameKey,
     email: String(email).trim(),
     emailKey,
-    password: hashPassword(String(password)),
+    role: wantsAdmin ? "admin" : "user",
     createdAt: new Date().toISOString()
   };
 
-  users.push(user);
-  await writeUsers(users);
+  db.prepare(`
+    INSERT INTO users (
+      id, username, username_key, email, email_key, role,
+      password_hash, password_salt, password_iterations, password_key_length, password_digest, created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    user.id,
+    user.username,
+    user.usernameKey,
+    user.email,
+    user.emailKey,
+    user.role,
+    passwordHash.hash,
+    passwordHash.salt,
+    passwordHash.iterations,
+    passwordHash.keyLength,
+    passwordHash.digest,
+    user.createdAt
+  );
 
   return {
-    user: publicUser(user),
+    user: publicUser({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      created_at: user.createdAt
+    }),
     token: createToken(user)
   };
 }
 
-export async function loginUser({ identifier, password }) {
+export function loginUser({ identifier, password }) {
   if (!identifier || !password) {
     return { status: 400, error: "Username or email and password are required." };
   }
 
   const identifierKey = normalize(identifier);
-  const users = await readUsers();
-  const user = users.find(
-    (item) => item.usernameKey === identifierKey || item.emailKey === identifierKey
-  );
+  const row = db
+    .prepare("SELECT * FROM users WHERE username_key = ? OR email_key = ?")
+    .get(identifierKey, identifierKey);
 
-  if (!user || !verifyPassword(String(password), user.password)) {
+  if (!row || !verifyPassword(String(password), passwordFromRow(row))) {
     return { status: 401, error: "Invalid username/email or password." };
   }
 
+  const user = publicUser(row);
   return {
-    user: publicUser(user),
+    user,
     token: createToken(user)
   };
 }
 
-export async function getUserFromToken(token) {
+export function getUserFromToken(token) {
   const payload = readToken(token);
   if (!payload) {
     return null;
   }
 
-  const users = await readUsers();
-  const user = users.find((item) => item.id === payload.sub);
-  return user ? publicUser(user) : null;
+  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(payload.sub);
+  return row ? publicUser(row) : null;
 }
