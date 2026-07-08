@@ -9,6 +9,7 @@ import { fetchGroups, fetchCurrentUser } from "./services/api.js";
 const tokenStorageKey = "geoguesr.authToken";
 
 function HomePage({ groups, selectedGroupId, onSelectGroup, onStart, onOpenCreate, onOpenManage }) {
+  const editableCount = groups.filter((group) => group.canEdit).length;
   return (
     <main className="landing-shell">
       <section className="landing-panel">
@@ -35,7 +36,7 @@ function HomePage({ groups, selectedGroupId, onSelectGroup, onStart, onOpenCreat
           <button className="primary-btn landing-btn" onClick={onStart} disabled={!selectedGroupId}>
             开始答题
           </button>
-          <button className="secondary-btn landing-btn-secondary" onClick={onOpenCreate}>
+          <button className="secondary-btn landing-btn-secondary" onClick={onOpenCreate} disabled={!editableCount}>
             添加题目
           </button>
           <button className="secondary-btn landing-btn-secondary" onClick={onOpenManage}>

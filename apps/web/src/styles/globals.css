@@ -366,6 +366,17 @@ textarea {
   display: block;
 }
 
+.image-question-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.editor-tabs {
+  margin-bottom: 18px;
+}
+
 .editor-preview-frame {
   aspect-ratio: 16 / 9;
 }

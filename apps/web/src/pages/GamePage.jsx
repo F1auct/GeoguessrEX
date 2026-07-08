@@ -116,7 +116,7 @@ export default function GamePage({ group, token, user, onBack, onLogout, onUnaut
 
       <div className="hud-top">
         <div className="hud-chip hud-chip-user">
-          <span>玩家</span>
+          <span>{user?.role === "admin" ? "管理员" : "玩家"}</span>
           <strong>{user?.username || "探险者"}</strong>
           <button type="button" onClick={onLogout}>
             登出

@@ -8,7 +8,8 @@ export default function AuthPage({ onAuthenticated }) {
     username: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    adminCode: ""
   });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -44,7 +45,8 @@ export default function AuthPage({ onAuthenticated }) {
         ? await registerAccount({
             username: form.username,
             email: form.email,
-            password: form.password
+            password: form.password,
+            adminCode: form.adminCode.trim() || undefined
           })
         : await loginAccount({
             identifier: form.identifier,
@@ -150,6 +152,20 @@ export default function AuthPage({ onAuthenticated }) {
                 autoComplete="new-password"
                 minLength={8}
                 required
+              />
+            </label>
+          ) : null}
+
+          {isRegistering ? (
+            <label>
+              <span>Admin code</span>
+              <input
+                name="adminCode"
+                type="password"
+                value={form.adminCode}
+                onChange={updateField}
+                autoComplete="off"
+                placeholder="Optional"
               />
             </label>
           ) : null}

@@ -20,6 +20,8 @@ function emptyQuestionForm(groupId = "new") {
     title: "",
     description: "",
     groupId,
+    sourceType: "street_view",
+    imageUrl: "",
     lat: "",
     lng: "",
     heading: "0",
@@ -158,6 +160,10 @@ export default function ManagePage({ token, onBack }) {
       title: questionForm.title.trim(),
       description: questionForm.description.trim(),
       groupId: questionForm.groupId,
+      sourceType: questionForm.sourceType,
+      imageUrl: questionForm.imageUrl.trim() || undefined,
+      lat: questionForm.sourceType === "image" ? toNumber(questionForm.lat) : undefined,
+      lng: questionForm.sourceType === "image" ? toNumber(questionForm.lng) : undefined,
       streetView: {
         lat: toNumber(questionForm.lat),
         lng: toNumber(questionForm.lng),
@@ -198,6 +204,8 @@ export default function ManagePage({ token, onBack }) {
       title: question.title,
       description: question.description || "",
       groupId: question.groupId,
+      sourceType: question.sourceType || "street_view",
+      imageUrl: question.imageUrl || "",
       lat: String(question.streetView.lat),
       lng: String(question.streetView.lng),
       heading: String(question.streetView.heading),
@@ -301,12 +309,18 @@ export default function ManagePage({ token, onBack }) {
           <div className="group-toolbar">
             {selectedGroup ? (
               <>
-                <button className="secondary-btn" onClick={() => handleEditGroup(selectedGroup)}>
-                  编辑当前题库组
-                </button>
-                <button className="secondary-btn danger-btn" onClick={() => handleDeleteGroup(selectedGroup)}>
-                  删除当前题库组
-                </button>
+                {selectedGroup.canEdit ? (
+                  <>
+                    <button className="secondary-btn" onClick={() => handleEditGroup(selectedGroup)}>
+                      编辑当前题库组
+                    </button>
+                    <button className="secondary-btn danger-btn" onClick={() => handleDeleteGroup(selectedGroup)}>
+                      删除当前题库组
+                    </button>
+                  </>
+                ) : (
+                  <p className="empty-text">你可以游玩该题库，但不能编辑其他用户创建的题库。</p>
+                )}
               </>
             ) : null}
           </div>
@@ -322,19 +336,22 @@ export default function ManagePage({ token, onBack }) {
                   <p>{question.description || "暂无地点介绍"}</p>
                   <span>{question.id}</span>
                 </div>
-                <div className="question-item-actions">
-                  <button className="secondary-btn" onClick={() => handleEditQuestion(question)}>
-                    编辑
-                  </button>
-                  <button className="secondary-btn danger-btn" onClick={() => handleDeleteQuestion(question)}>
-                    删除
-                  </button>
-                </div>
+                {question.canEdit ? (
+                  <div className="question-item-actions">
+                    <button className="secondary-btn" onClick={() => handleEditQuestion(question)}>
+                      编辑
+                    </button>
+                    <button className="secondary-btn danger-btn" onClick={() => handleDeleteQuestion(question)}>
+                      删除
+                    </button>
+                  </div>
+                ) : null}
               </article>
             ))}
             {!questions.length ? <p className="empty-text">当前题库组还没有题目。</p> : null}
           </div>
 
+          {selectedGroup?.canEdit ? (
           <form className="manage-form" onSubmit={handleQuestionSubmit}>
             <div className="form-grid">
               <label>
@@ -361,11 +378,21 @@ export default function ManagePage({ token, onBack }) {
                   value={questionForm.groupId}
                   onChange={(event) => setQuestionForm((current) => ({ ...current, groupId: event.target.value }))}
                 >
-                  {groups.map((group) => (
+                  {groups.filter((group) => group.canEdit).map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.title}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label>
+                <span>题目类型</span>
+                <select
+                  value={questionForm.sourceType}
+                  onChange={(event) => setQuestionForm((current) => ({ ...current, sourceType: event.target.value }))}
+                >
+                  <option value="street_view">街景题</option>
+                  <option value="image">图片题</option>
                 </select>
               </label>
               <label>
@@ -415,6 +442,17 @@ export default function ManagePage({ token, onBack }) {
                   onChange={(event) => setQuestionForm((current) => ({ ...current, panoId: event.target.value }))}
                 />
               </label>
+              {questionForm.sourceType === "image" ? (
+                <label className="form-grid-wide">
+                  <span>图片地址</span>
+                  <input
+                    value={questionForm.imageUrl}
+                    onChange={(event) => setQuestionForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                    placeholder="/uploads/questions/example.jpg"
+                    required
+                  />
+                </label>
+              ) : null}
               <label className="form-grid-wide">
                 <span>地点介绍</span>
                 <textarea
@@ -438,6 +476,9 @@ export default function ManagePage({ token, onBack }) {
               ) : null}
             </div>
           </form>
+          ) : (
+            <p className="empty-text">选择你自己的题库后即可新增或编辑题目。</p>
+          )}
         </section>
       </section>
     </main>
