@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createQuestion, resolveApiAssetUrl, uploadQuestionImage } from "../services/api.js";
 import { buildStreetViewEmbedUrl } from "../components/StreetViewPanel.jsx";
 
@@ -71,12 +71,29 @@ function parseStreetViewUrl(rawUrl) {
 
 export default function CreateMapPage({ groups, token, onBack, onCreated }) {
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+  const editableGroups = useMemo(() => groups.filter((group) => group.canEdit), [groups]);
   const [mode, setMode] = useState("street_view");
-  const [form, setForm] = useState({ ...initialForm, groupId: groups[0]?.id || "" });
+  const [form, setForm] = useState({ ...initialForm, groupId: editableGroups[0]?.id || "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+
+  useEffect(() => {
+    if (!editableGroups.length) {
+      return;
+    }
+
+    setForm((current) => {
+      if (editableGroups.some((group) => group.id === current.groupId)) {
+        return current;
+      }
+      return {
+        ...current,
+        groupId: editableGroups[0].id
+      };
+    });
+  }, [editableGroups]);
 
   const parsed = useMemo(() => parseStreetViewUrl(form.streetViewUrl), [form.streetViewUrl]);
   const imagePreviewUrl = useMemo(
@@ -117,7 +134,7 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
   }
 
   function resetForm() {
-    setForm({ ...initialForm, groupId: form.groupId || groups[0]?.id || "" });
+    setForm({ ...initialForm, groupId: form.groupId || editableGroups[0]?.id || "" });
     setUploadedImageUrl("");
   }
 
@@ -208,7 +225,7 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
             <label>
               <span>题库</span>
               <select name="groupId" value={form.groupId} onChange={handleChange}>
-                {groups.filter((group) => group.canEdit).map((group) => (
+                {editableGroups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.title}
                   </option>
