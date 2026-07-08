@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { loginAccount, registerAccount } from "../services/api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
-export default function AuthPage({ onAuthenticated }) {
+export default function AuthPage() {
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
     identifier: "",
@@ -15,6 +19,10 @@ export default function AuthPage({ onAuthenticated }) {
   const [error, setError] = useState("");
 
   const isRegistering = mode === "register";
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   function updateField(event) {
     setForm((current) => ({
@@ -53,7 +61,8 @@ export default function AuthPage({ onAuthenticated }) {
             password: form.password
           });
 
-      onAuthenticated(result);
+      login(result);
+      navigate("/");
     } catch (err) {
       setError(err.message);
       setStatus("idle");

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { createQuestion, resolveApiAssetUrl, uploadQuestionImage } from "../services/api.js";
+import { useNavigate } from "react-router-dom";
+import { createQuestion, fetchGroups, resolveApiAssetUrl, uploadQuestionImage } from "../services/api.js";
 import { buildStreetViewEmbedUrl } from "../components/StreetViewPanel.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const initialForm = {
   id: "",
@@ -69,15 +71,39 @@ function parseStreetViewUrl(rawUrl) {
   };
 }
 
-export default function CreateMapPage({ groups, token, onBack, onCreated }) {
+export default function CreateMapPage() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+  const [groups, setGroups] = useState([]);
   const editableGroups = useMemo(() => groups.filter((group) => group.canEdit), [groups]);
   const [mode, setMode] = useState("street_view");
-  const [form, setForm] = useState({ ...initialForm, groupId: editableGroups[0]?.id || "" });
+  const [form, setForm] = useState({ ...initialForm, groupId: "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [created, setCreated] = useState(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+
+  useEffect(() => {
+    fetchGroups(token)
+      .then((items) => {
+        setGroups(items);
+        const editable = items.filter((g) => g.canEdit);
+        if (editable.length > 0) {
+          setForm((current) => {
+            if (editable.some((g) => g.id === current.groupId)) {
+              return current;
+            }
+            return { ...current, groupId: editable[0].id };
+          });
+        }
+      })
+      .catch((err) => {
+        if (err.status === 401) {
+          navigate("/login");
+        }
+      });
+  }, [token]);
 
   useEffect(() => {
     if (!editableGroups.length) {
@@ -182,7 +208,6 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
       setCreated(question);
       setStatus("success");
       resetForm();
-      onCreated?.(question);
     } catch (err) {
       setError(err.message);
       setStatus("idle");
@@ -198,7 +223,7 @@ export default function CreateMapPage({ groups, token, onBack, onCreated }) {
             <h1>添加题目</h1>
             <p className="hero-copy">可通过 Google 街景链接创建街景题，也可以上传本地图片并手动填写坐标。</p>
           </div>
-          <button type="button" className="secondary-btn" onClick={onBack}>
+          <button type="button" className="secondary-btn" onClick={() => navigate("/")}>
             返回
           </button>
         </div>

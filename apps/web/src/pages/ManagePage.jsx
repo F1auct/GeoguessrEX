@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   createGroup,
   createQuestion,
@@ -9,6 +10,7 @@ import {
   updateGroup,
   updateQuestion
 } from "../services/api.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 function emptyGroupForm() {
   return { id: "", title: "" };
@@ -35,7 +37,9 @@ function toNumber(value) {
   return Number.parseFloat(value);
 }
 
-export default function ManagePage({ token, onBack }) {
+export default function ManagePage() {
+  const { token } = useAuth();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [questions, setQuestions] = useState([]);
@@ -135,7 +139,7 @@ export default function ManagePage({ token, onBack }) {
 
   async function handleDeleteGroup(group) {
     const shouldDelete = window.confirm(
-      `确定删除题库组“${group.title}”吗？该组内所有题目都会被删除，这个操作不能撤销。`
+      `确定删除题库组"${group.title}"吗？该组内所有题目都会被删除，这个操作不能撤销。`
     );
     if (!shouldDelete) {
       return;
@@ -217,7 +221,7 @@ export default function ManagePage({ token, onBack }) {
 
   async function handleDeleteQuestion(question) {
     const shouldDelete = window.confirm(
-      `确定删除题目“${question.title}”吗？这个操作不能撤销。`
+      `确定删除题目"${question.title}"吗？这个操作不能撤销。`
     );
     if (!shouldDelete) {
       return;
@@ -249,7 +253,7 @@ export default function ManagePage({ token, onBack }) {
           <h1>管理题库组和题目</h1>
           <p className="hero-copy">你可以自由新增、修改、删除题库组和其中的题目。</p>
         </div>
-        <button className="secondary-btn" onClick={onBack}>
+        <button className="secondary-btn" onClick={() => navigate("/")}>
           返回首页
         </button>
       </section>
