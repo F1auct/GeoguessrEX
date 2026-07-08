@@ -27,10 +27,21 @@
 
 优先支持 `npm`，如果本机装了 `pnpm` 也可以用。
 
+### 方式一：根目录一键安装（推荐）
+
+```bash
+npm install
+```
+
+### 方式二：分别安装
+
 1. 安装前端依赖
    `cd apps/web && npm install`
 2. 安装后端依赖
    `cd apps/api && npm install`
+
+### 启动
+
 3. 启动后端
    `cd apps/api && npm run dev`
 4. 启动前端
