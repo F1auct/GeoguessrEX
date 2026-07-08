@@ -86,28 +86,36 @@ export default function AuthPage() {
 
   return (
     <main className="landing-shell auth-shell auth-shell-cinematic">
-      <section className="auth-stage">
-        <div className="auth-backdrop card">
-          <div className="scenic-stage-images">
+      <div className="auth-bg" aria-hidden="true">
+        {scenicImages.map((image, index) => (
+          <div
+            key={image}
+            className={`auth-bg-image ${index === activeImageIndex ? "active" : ""}`}
+            style={{ backgroundImage: `url(${image})` }}
+          />
+        ))}
+        <div className="auth-bg-frost" />
+      </div>
+
+      <section className="auth-card">
+        <div className="auth-card-visual">
+          <div className="auth-card-images" aria-hidden="true">
             {scenicImages.map((image, index) => (
               <div
                 key={image}
-                className={`scenic-stage-image ${index === activeImageIndex ? "active" : ""}`}
+                className={`auth-card-image ${index === activeImageIndex ? "active" : ""}`}
                 style={{ backgroundImage: `url(${image})` }}
               />
             ))}
           </div>
-          <div className="auth-backdrop-overlay" />
+          <div className="auth-card-visual-scrim" />
+          <div className="auth-card-brand">
+            <strong>GeoGuessrEX</strong>
+            <p>一帧街景，便是世界写给你的谜题；循光影落笔，认领属于你的坐标。</p>
+          </div>
         </div>
 
-        <section className="auth-stage-grid">
-          <div className="auth-copy-panel auth-copy-panel-minimal">
-            <div className="brand-mark">
-              <span>GEO</span>
-              <strong>GUESSREX</strong>
-            </div>
-          </div>
-
+        <div className="auth-card-form">
           <form className="auth-form auth-form-rich" onSubmit={handleSubmit}>
             <div className="auth-tabs" aria-label="Authentication mode">
               <button
@@ -212,7 +220,7 @@ export default function AuthPage() {
               {status === "submitting" ? "处理中..." : isRegistering ? "创建账户" : "登录"}
             </button>
           </form>
-        </section>
+        </div>
       </section>
     </main>
   );
