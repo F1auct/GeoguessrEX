@@ -3,6 +3,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import GamePage from "./pages/GamePage.jsx";
 import CreateMapPage from "./pages/CreateMapPage.jsx";
 import ManagePage from "./pages/ManagePage.jsx";
+import UserBar from "./components/UserBar.jsx";
 import { fetchGroups, fetchCurrentUser } from "./services/api.js";
 
 const tokenStorageKey = "geoguesr.authToken";
@@ -149,53 +150,64 @@ export default function App() {
 
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
 
-  if (page === "create") {
+  const isGamePage = page === "game" && selectedGroup;
+
+  const pageContent = (() => {
+    if (page === "create") {
+      return (
+        <CreateMapPage
+          groups={groups}
+          token={session.token}
+          onBack={async () => {
+            await loadGroups();
+            setPage("home");
+          }}
+          onCreated={loadGroups}
+        />
+      );
+    }
+
+    if (page === "manage") {
+      return (
+        <ManagePage
+          token={session.token}
+          onBack={async () => {
+            await loadGroups();
+            setPage("home");
+          }}
+        />
+      );
+    }
+
+    if (isGamePage) {
+      return (
+        <GamePage
+          group={selectedGroup}
+          token={session.token}
+          user={session.user}
+          onBack={() => setPage("home")}
+          onLogout={handleLogout}
+          onUnauthorized={handleUnauthorized}
+        />
+      );
+    }
+
     return (
-      <CreateMapPage
+      <HomePage
         groups={groups}
-        token={session.token}
-        onBack={async () => {
-          await loadGroups();
-          setPage("home");
-        }}
-        onCreated={loadGroups}
+        selectedGroupId={selectedGroupId}
+        onSelectGroup={setSelectedGroupId}
+        onStart={() => setPage("game")}
+        onOpenCreate={() => setPage("create")}
+        onOpenManage={() => setPage("manage")}
       />
     );
-  }
-
-  if (page === "manage") {
-    return (
-      <ManagePage
-        token={session.token}
-        onBack={async () => {
-          await loadGroups();
-          setPage("home");
-        }}
-      />
-    );
-  }
-
-  if (page === "game" && selectedGroup) {
-    return (
-      <GamePage
-        group={selectedGroup}
-        token={session.token}
-        user={session.user}
-        onBack={() => setPage("home")}
-        onLogout={handleLogout}
-        onUnauthorized={handleUnauthorized}
-      />
-    );
-  }
+  })();
 
   return (
-    <HomePage
-      groups={groups}
-      selectedGroupId={selectedGroupId}
-      onSelectGroup={setSelectedGroupId}
-      onStart={() => setPage("game")}
-      onOpenCreate={() => setPage("create")}
-      onOpenManage={() => setPage("manage")}
-    />
+    <>
+      {!isGamePage && <UserBar user={session.user} onLogout={handleLogout} />}
+      {pageContent}
+    </>
   );
 }

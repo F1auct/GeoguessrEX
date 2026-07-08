@@ -61,21 +61,7 @@
     {
       "id": "new",
       "title": "新题库",
-      "questions": [
-        {
-          "id": "q5",
-          "title": "sdadd",
-          "description": "adadd",
-          "streetView": {
-            "lat": 27.246289,
-            "lng": 110.442568,
-            "heading": 0,
-            "pitch": 0,
-            "fov": 100,
-            "panoId": null
-          }
-        }
-      ]
+      "questions": []
     }
   ]
 }
