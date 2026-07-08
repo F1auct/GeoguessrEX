@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerQuestionRoutes } from "./routes/questions.js";
 import { registerSubmitRoute } from "./routes/submit.js";
@@ -11,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 registerHealthRoute(app);
+registerAuthRoutes(app);
 registerQuestionRoutes(app);
 registerSubmitRoute(app);
 
