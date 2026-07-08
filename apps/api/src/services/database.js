@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,7 +11,7 @@ const dbPath = process.env.DATABASE_PATH || path.join(dataDir, "geoguesr.sqlite"
 
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-export const db = new DatabaseSync(dbPath);
+export const db = new Database(dbPath);
 db.exec("PRAGMA foreign_keys = ON");
 
 export function initDatabase() {
