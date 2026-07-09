@@ -43,7 +43,6 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS questions (
       id TEXT PRIMARY KEY,
       bank_id TEXT NOT NULL,
-      title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       source_type TEXT NOT NULL DEFAULT 'street_view',
       lat REAL NOT NULL,
@@ -59,7 +58,20 @@ export function initDatabase() {
     );
   `);
 
+  migrateDropQuestionTitle();
   seedQuestionsFromJson();
+}
+
+// 兼容已存在的开发库：若旧的 questions 表仍有 title 列则删除它
+function migrateDropQuestionTitle() {
+  const hasTitle = db
+    .prepare("PRAGMA table_info(questions)")
+    .all()
+    .some((column) => column.name === "title");
+
+  if (hasTitle) {
+    db.exec("ALTER TABLE questions DROP COLUMN title");
+  }
 }
 
 function seedQuestionsFromJson() {
@@ -87,9 +99,9 @@ function seedQuestionsFromJson() {
   `);
   const insertQuestion = db.prepare(`
     INSERT INTO questions (
-      id, bank_id, title, description, source_type, lat, lng, heading, pitch, fov, pano_id, image_path, created_at, updated_at
+      id, bank_id, description, source_type, lat, lng, heading, pitch, fov, pano_id, image_path, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, 'street_view', ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+    VALUES (?, ?, ?, 'street_view', ?, ?, ?, ?, ?, ?, NULL, ?, ?)
   `);
 
   db.exec("BEGIN");
@@ -105,7 +117,6 @@ function seedQuestionsFromJson() {
         insertQuestion.run(
           String(question.id || cryptoRandomId("q")).trim(),
           bankId,
-          String(question.title || "未命名题目").trim(),
           String(question.description || "").trim(),
           Number(question.streetView.lat),
           Number(question.streetView.lng),

@@ -2,7 +2,6 @@ export default function ResultPanel({ result, onNext, isLast }) {
   return (
     <section className="card result-card result-info-card">
       <div className="eyebrow">本题结果</div>
-      <h2>{result.title}</h2>
       <p className="result-summary">
         {result.groupTitle ? `题库组：${result.groupTitle}` : "已完成本题定位。"}
       </p>

@@ -37,18 +37,6 @@ function validateQuestionPayload(payload, { partial = false } = {}) {
     return "请求体不能为空";
   }
 
-  if (!partial || payload.id !== undefined) {
-    if (!payload.id || typeof payload.id !== "string") {
-      return "题目 id 必填";
-    }
-  }
-
-  if (!partial || payload.title !== undefined) {
-    if (!payload.title || typeof payload.title !== "string") {
-      return "题目标题必填";
-    }
-  }
-
   if (!partial || payload.description !== undefined) {
     if (payload.description !== undefined && typeof payload.description !== "string") {
       return "题目描述必须为字符串";
@@ -213,8 +201,6 @@ export function registerQuestionRoutes(app) {
 
     const sourceType = req.body.sourceType || "street_view";
     const result = addQuestion({
-      id: req.body.id.trim(),
-      title: req.body.title.trim(),
       sourceType,
       description: req.body.description?.trim() ?? "",
       groupId: req.body.groupId?.trim() || "new",
@@ -251,8 +237,6 @@ export function registerQuestionRoutes(app) {
     }
 
     const result = updateQuestion(req.params.id, {
-      id: req.body.id?.trim(),
-      title: req.body.title?.trim(),
       sourceType: req.body.sourceType,
       description: req.body.description?.trim(),
       groupId: req.body.groupId?.trim(),

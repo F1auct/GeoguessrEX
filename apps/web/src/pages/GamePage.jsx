@@ -178,7 +178,7 @@ export default function GamePage() {
         </section>
         <section className="card floating-controls">
           <div className="eyebrow">当前题目</div>
-          <p className="floating-title">{question.title}</p>
+          {question.description ? <p className="floating-title">{question.description}</p> : null}
           <p>
             当前猜测：
             <strong>{guess ? ` ${guess.lat}, ${guess.lng}` : " 尚未选择"}</strong>
@@ -199,7 +199,7 @@ export default function GamePage() {
       <section className="result-header card">
         <div>
           <p className="hero-kicker">结果页</p>
-          <h1>{result.title}</h1>
+          <h1>本题结果</h1>
           <p className="hero-copy">查看你的猜测和正确地点，并阅读这个地点的介绍。</p>
         </div>
         <button className="secondary-btn" onClick={() => navigate("/")}>
