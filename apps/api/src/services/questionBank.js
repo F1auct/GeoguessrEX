@@ -5,6 +5,13 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// 根据题目内容 + 时间戳 + 随机串生成短哈希 id（形如 q-3f9a2b1c）
+function generateQuestionId({ sourceType, lat, lng, imagePath, panoId }) {
+  const seed = [sourceType, lat, lng, imagePath, panoId, Date.now(), crypto.randomUUID()].join("|");
+  const hash = crypto.createHash("sha256").update(seed).digest("hex").slice(0, 12);
+  return `q-${hash}`;
+}
+
 function canEditBank(user, bank) {
   return user?.role === "admin" || (user?.id && bank?.owner_user_id === user.id);
 }
@@ -25,7 +32,6 @@ function bankRowToGroup(row, user) {
 function questionRowToQuestion(row, user) {
   const base = {
     id: row.id,
-    title: row.title,
     description: row.description,
     sourceType: row.source_type,
     imageUrl: row.image_path,
@@ -77,10 +83,17 @@ function normalizeQuestionInput(input, existing = {}) {
   const streetView = input.streetView || {};
   const lat = input.lat ?? streetView.lat ?? existing.lat;
   const lng = input.lng ?? streetView.lng ?? existing.lng;
+  const panoId = input.panoId ?? streetView.panoId ?? existing.pano_id ?? null;
+  const imagePath = input.imageUrl ?? input.imagePath ?? existing.image_path ?? null;
+
+  const id = input.id
+    ? String(input.id).trim()
+    : existing.id
+      ? String(existing.id).trim()
+      : generateQuestionId({ sourceType, lat, lng, imagePath, panoId });
 
   return {
-    id: String(input.id ?? existing.id ?? crypto.randomUUID()).trim(),
-    title: String(input.title ?? existing.title ?? "").trim(),
+    id,
     description: String(input.description ?? existing.description ?? "").trim(),
     groupId: String(input.groupId ?? existing.bank_id ?? "").trim(),
     sourceType,
@@ -89,8 +102,8 @@ function normalizeQuestionInput(input, existing = {}) {
     heading: input.heading ?? streetView.heading ?? existing.heading ?? 0,
     pitch: input.pitch ?? streetView.pitch ?? existing.pitch ?? 0,
     fov: input.fov ?? streetView.fov ?? existing.fov ?? 100,
-    panoId: input.panoId ?? streetView.panoId ?? existing.pano_id ?? null,
-    imagePath: input.imageUrl ?? input.imagePath ?? existing.image_path ?? null
+    panoId,
+    imagePath
   };
 }
 
@@ -217,14 +230,13 @@ export function addQuestion(input, user) {
   const timestamp = nowIso();
   db.prepare(`
     INSERT INTO questions (
-      id, bank_id, title, description, source_type, lat, lng, heading, pitch, fov,
+      id, bank_id, description, source_type, lat, lng, heading, pitch, fov,
       pano_id, image_path, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     normalized.id,
     normalized.groupId,
-    normalized.title,
     normalized.description,
     normalized.sourceType,
     normalized.lat,
@@ -267,13 +279,12 @@ export function updateQuestion(questionId, input, user) {
   const timestamp = nowIso();
   db.prepare(`
     UPDATE questions
-    SET id = ?, bank_id = ?, title = ?, description = ?, source_type = ?,
+    SET id = ?, bank_id = ?, description = ?, source_type = ?,
       lat = ?, lng = ?, heading = ?, pitch = ?, fov = ?, pano_id = ?, image_path = ?, updated_at = ?
     WHERE id = ?
   `).run(
     normalized.id,
     normalized.groupId,
-    normalized.title,
     normalized.description,
     normalized.sourceType,
     normalized.lat,

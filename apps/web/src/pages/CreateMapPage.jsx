@@ -11,8 +11,6 @@ const scenicImages = [
 ];
 
 const initialForm = {
-  id: "",
-  title: "",
   description: "",
   groupId: "",
   streetViewUrl: "",
@@ -143,18 +141,16 @@ export default function CreateMapPage() {
   );
 
   const streetViewPreview = useMemo(() => {
-    if (!form.id.trim() || !form.title.trim() || !parsed.streetView) {
+    if (!parsed.streetView) {
       return null;
     }
     return {
-      id: form.id.trim(),
-      title: form.title.trim(),
       description: form.description.trim(),
       groupId: form.groupId,
       sourceType: "street_view",
       streetView: parsed.streetView
     };
-  }, [form.id, form.title, form.description, form.groupId, parsed.streetView]);
+  }, [form.description, form.groupId, parsed.streetView]);
 
   const previewSrc = useMemo(() => {
     if (!streetViewPreview?.streetView || !googleMapsApiKey) {
@@ -212,8 +208,6 @@ export default function CreateMapPage() {
         const upload = uploadedImageUrl ? { imageUrl: uploadedImageUrl } : await uploadQuestionImage(form.imageFile, token);
         setUploadedImageUrl(upload.imageUrl);
         payload = {
-          id: form.id.trim(),
-          title: form.title.trim(),
           description: form.description.trim(),
           groupId: form.groupId,
           sourceType: "image",
@@ -328,14 +322,6 @@ export default function CreateMapPage() {
           </div>
 
           <div className="form-grid">
-            <label>
-              <span>题目 ID</span>
-              <input name="id" value={form.id} onChange={handleChange} placeholder="q5" required />
-            </label>
-            <label>
-              <span>题目标题</span>
-              <input name="title" value={form.title} onChange={handleChange} placeholder="东京十字路口" required />
-            </label>
             <label>
               <span>归属题库</span>
               <select name="groupId" value={form.groupId} onChange={handleChange}>

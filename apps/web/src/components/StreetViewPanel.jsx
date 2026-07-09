@@ -25,9 +25,8 @@ export default function StreetViewPanel({ question, apiKey, fullscreen = false }
     return (
       <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
         {!fullscreen ? <div className="eyebrow">图片题</div> : null}
-        {!fullscreen ? <h1>{question.title}</h1> : null}
         <div className="streetview-frame image-question-frame">
-          <img src={resolveApiAssetUrl(question.imageUrl)} alt={question.title} />
+          <img src={resolveApiAssetUrl(question.imageUrl)} alt="题目图片" />
         </div>
       </section>
     );
@@ -37,7 +36,6 @@ export default function StreetViewPanel({ question, apiKey, fullscreen = false }
     return (
       <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
         <div className="eyebrow">街景</div>
-        <h1>{question.title}</h1>
         <div className="streetview-empty">
           <strong>缺少 Google Maps API Key</strong>
           <p>请在 `apps/web/.env.local` 中配置 `VITE_GOOGLE_MAPS_API_KEY`。</p>
@@ -51,10 +49,9 @@ export default function StreetViewPanel({ question, apiKey, fullscreen = false }
   return (
     <section className={`card question-card ${fullscreen ? "question-card-fullscreen" : ""}`}>
       {!fullscreen ? <div className="eyebrow">街景</div> : null}
-      {!fullscreen ? <h1>{question.title}</h1> : null}
       <div className="streetview-frame">
         <iframe
-          title={question.title}
+          title="街景"
           src={src}
           allowFullScreen
           loading="eager"
