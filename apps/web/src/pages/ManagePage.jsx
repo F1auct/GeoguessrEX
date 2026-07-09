@@ -2,13 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createGroup,
-  createQuestion,
   deleteGroup,
   deleteQuestion,
   fetchGroups,
   fetchQuestionsByGroup,
-  updateGroup,
-  updateQuestion
+  updateGroup
 } from "../services/api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -22,27 +20,6 @@ function emptyGroupForm() {
   return { id: "", title: "" };
 }
 
-function emptyQuestionForm(groupId = "new") {
-  return {
-    id: "",
-    title: "",
-    description: "",
-    groupId,
-    sourceType: "street_view",
-    imageUrl: "",
-    lat: "",
-    lng: "",
-    heading: "0",
-    pitch: "0",
-    fov: "100",
-    panoId: ""
-  };
-}
-
-function toNumber(value) {
-  return Number.parseFloat(value);
-}
-
 export default function ManagePage() {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -50,8 +27,6 @@ export default function ManagePage() {
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [questions, setQuestions] = useState([]);
   const [groupForm, setGroupForm] = useState(emptyGroupForm());
-  const [questionForm, setQuestionForm] = useState(emptyQuestionForm());
-  const [editingQuestionId, setEditingQuestionId] = useState("");
   const [editingGroupId, setEditingGroupId] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("loading");
@@ -80,7 +55,6 @@ export default function ManagePage() {
       .then(async () => {
         const { targetGroupId } = await loadGroups();
         await loadQuestions(targetGroupId);
-        setQuestionForm(emptyQuestionForm(targetGroupId || "new"));
         setStatus("ready");
       })
       .catch((err) => {
@@ -97,10 +71,6 @@ export default function ManagePage() {
     loadQuestions(selectedGroupId).catch((err) => {
       setError(err.message);
     });
-    setQuestionForm((current) => ({
-      ...current,
-      groupId: selectedGroupId
-    }));
   }, [selectedGroupId]);
 
   useEffect(() => {
@@ -116,11 +86,6 @@ export default function ManagePage() {
     [groups, selectedGroupId]
   );
   const editableGroups = useMemo(() => groups.filter((group) => group.canEdit), [groups]);
-
-  function resetQuestionForm(groupId = selectedGroupId || "new") {
-    setQuestionForm(emptyQuestionForm(groupId));
-    setEditingQuestionId("");
-  }
 
   function resetGroupForm() {
     setGroupForm(emptyGroupForm());
@@ -178,44 +143,6 @@ export default function ManagePage() {
     }
   }
 
-  async function handleQuestionSubmit(event) {
-    event.preventDefault();
-    setError("");
-
-    const payload = {
-      id: questionForm.id.trim(),
-      title: questionForm.title.trim(),
-      description: questionForm.description.trim(),
-      groupId: questionForm.groupId,
-      sourceType: questionForm.sourceType,
-      imageUrl: questionForm.imageUrl.trim() || undefined,
-      lat: questionForm.sourceType === "image" ? toNumber(questionForm.lat) : undefined,
-      lng: questionForm.sourceType === "image" ? toNumber(questionForm.lng) : undefined,
-      streetView: {
-        lat: toNumber(questionForm.lat),
-        lng: toNumber(questionForm.lng),
-        heading: toNumber(questionForm.heading),
-        pitch: toNumber(questionForm.pitch),
-        fov: toNumber(questionForm.fov),
-        panoId: questionForm.panoId.trim() || null
-      }
-    };
-
-    try {
-      if (editingQuestionId) {
-        await updateQuestion(editingQuestionId, payload, token);
-      } else {
-        await createQuestion(payload, token);
-      }
-
-      await loadGroups(questionForm.groupId);
-      await loadQuestions(questionForm.groupId);
-      resetQuestionForm(questionForm.groupId);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   function handleEditGroup(group) {
     setEditingGroupId(group.id);
     setGroupForm({
@@ -224,26 +151,8 @@ export default function ManagePage() {
     });
   }
 
-  function handleEditQuestion(question) {
-    setEditingQuestionId(question.id);
-    setQuestionForm({
-      id: question.id,
-      title: question.title,
-      description: question.description || "",
-      groupId: question.groupId,
-      sourceType: question.sourceType || "street_view",
-      imageUrl: question.imageUrl || "",
-      lat: String(question.streetView.lat),
-      lng: String(question.streetView.lng),
-      heading: String(question.streetView.heading),
-      pitch: String(question.streetView.pitch),
-      fov: String(question.streetView.fov),
-      panoId: question.streetView.panoId || ""
-    });
-  }
-
   async function handleDeleteQuestion(question) {
-    const shouldDelete = window.confirm(`确定删除题目“${question.title}”吗？此操作不可撤销。`);
+    const shouldDelete = window.confirm(`确定删除题目“${question.description || question.id}”吗？此操作不可撤销。`);
     if (!shouldDelete) {
       return;
     }
@@ -406,15 +315,11 @@ export default function ManagePage() {
             {questions.map((question) => (
               <article key={question.id} className="question-item">
                 <div>
-                  <strong>{question.title}</strong>
-                  <p>{question.description || "暂无地点介绍"}</p>
+                  <strong>{question.description || "暂无地点介绍"}</strong>
                   <span>{question.id}</span>
                 </div>
                 {question.canEdit ? (
                   <div className="question-item-actions">
-                    <button className="secondary-btn" onClick={() => handleEditQuestion(question)}>
-                      编辑
-                    </button>
                     <button className="secondary-btn danger-btn" onClick={() => handleDeleteQuestion(question)}>
                       删除
                     </button>
@@ -427,149 +332,28 @@ export default function ManagePage() {
                 <strong>这个题库里还没有题目</strong>
                 <p>
                   {selectedGroup?.canEdit
-                    ? "你可以直接在下面补第一道题。"
-                    : "先选中你自己的题库，才能在下面新建或编辑题目。"}
+                    ? "点击下方「去新建题目」添加第一道题。"
+                    : "先选中你自己的题库，才能新建题目。"}
                 </p>
               </div>
             ) : null}
           </div>
 
           {selectedGroup?.canEdit ? (
-            <form className="manage-form" onSubmit={handleQuestionSubmit}>
+            <div className="manage-form">
               <div className="section-heading section-heading-inline">
                 <div>
                   <div className="eyebrow">题目录入</div>
-                  <h2>{editingQuestionId ? "编辑题目" : "添加新题目"}</h2>
+                  <h2>添加新题目</h2>
                 </div>
               </div>
-
-              <div className="form-grid">
-                <label>
-                  <span>题目 ID</span>
-                  <input
-                    value={questionForm.id}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, id: event.target.value }))}
-                    placeholder="q10"
-                    required
-                  />
-                </label>
-                <label>
-                  <span>题目标题</span>
-                  <input
-                    value={questionForm.title}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, title: event.target.value }))}
-                    placeholder="巴黎街头"
-                    required
-                  />
-                </label>
-                <label>
-                  <span>归属题库</span>
-                  <select
-                    value={questionForm.groupId}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, groupId: event.target.value }))}
-                  >
-                    {editableGroups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>题目类型</span>
-                  <select
-                    value={questionForm.sourceType}
-                    onChange={(event) =>
-                      setQuestionForm((current) => ({ ...current, sourceType: event.target.value }))
-                    }
-                  >
-                    <option value="street_view">街景题</option>
-                    <option value="image">图片题</option>
-                  </select>
-                </label>
-                <label>
-                  <span>纬度</span>
-                  <input
-                    value={questionForm.lat}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, lat: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  <span>经度</span>
-                  <input
-                    value={questionForm.lng}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, lng: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Heading</span>
-                  <input
-                    value={questionForm.heading}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, heading: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Pitch</span>
-                  <input
-                    value={questionForm.pitch}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, pitch: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  <span>FOV</span>
-                  <input
-                    value={questionForm.fov}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, fov: event.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Pano ID</span>
-                  <input
-                    value={questionForm.panoId}
-                    onChange={(event) => setQuestionForm((current) => ({ ...current, panoId: event.target.value }))}
-                  />
-                </label>
-                {questionForm.sourceType === "image" ? (
-                  <label className="form-grid-wide">
-                    <span>图片地址</span>
-                    <input
-                      value={questionForm.imageUrl}
-                      onChange={(event) =>
-                        setQuestionForm((current) => ({ ...current, imageUrl: event.target.value }))
-                      }
-                      placeholder="/uploads/questions/example.jpg"
-                      required
-                    />
-                  </label>
-                ) : null}
-                <label className="form-grid-wide">
-                  <span>地点介绍</span>
-                  <textarea
-                    rows={4}
-                    value={questionForm.description}
-                    onChange={(event) =>
-                      setQuestionForm((current) => ({ ...current, description: event.target.value }))
-                    }
-                  />
-                </label>
-              </div>
-
+              <p className="form-help">题目的新建统一在独立页面完成，字段更完整、支持街景链接解析与本地图片上传。</p>
               <div className="manage-actions">
-                <button className="primary-btn" type="submit">
-                  {editingQuestionId ? "保存题目" : "添加题目"}
+                <button className="primary-btn" type="button" onClick={() => navigate("/create")}>
+                  去新建题目
                 </button>
-                {editingQuestionId ? (
-                  <button className="secondary-btn" type="button" onClick={() => resetQuestionForm()}>
-                    取消编辑
-                  </button>
-                ) : null}
               </div>
-            </form>
+            </div>
           ) : (
             <div className="notice-card warning-card">
               <strong>还不能在这里补题</strong>
