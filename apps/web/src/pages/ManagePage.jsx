@@ -85,7 +85,6 @@ export default function ManagePage() {
     () => groups.find((group) => group.id === selectedGroupId) ?? null,
     [groups, selectedGroupId]
   );
-  const editableGroups = useMemo(() => groups.filter((group) => group.canEdit), [groups]);
 
   function resetGroupForm() {
     setGroupForm(emptyGroupForm());
@@ -202,26 +201,6 @@ export default function ManagePage() {
       </section>
 
       {error ? <p className="error-text manage-error">{error}</p> : null}
-
-      <section className="hero-panel workflow-banner">
-        <div className="workflow-points">
-          <div>
-            <span>01</span>
-            <strong>创建题库</strong>
-          </div>
-          <div>
-            <span>02</span>
-            <strong>选择题库</strong>
-          </div>
-          <div>
-            <span>03</span>
-            <strong>添加题目</strong>
-          </div>
-        </div>
-        <p className="form-help">
-          当前共有 {groups.length} 个题库，其中 {editableGroups.length} 个可以编辑。
-        </p>
-      </section>
 
       <section className="manage-grid">
         <section className="card manage-card">
