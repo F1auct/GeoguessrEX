@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AmapGuessMap from "../components/AmapGuessMap.jsx";
-import StreetViewPanel from "../components/StreetViewPanel.jsx";
+import GoogleStreetView from "../components/GoogleStreetView.jsx";
 import AmapResultMap from "../components/AmapResultMap.jsx";
 import ResultPanel from "../components/ResultPanel.jsx";
 import { fetchGroups, fetchQuestions, submitAnswer } from "../services/api.js";
@@ -127,7 +127,7 @@ export default function GamePage() {
 
   return !result ? (
     <main className="play-shell">
-      <StreetViewPanel question={question} apiKey={googleMapsApiKey} fullscreen />
+      <GoogleStreetView lat={question.streetView.lat} lng={question.streetView.lng} heading={question.streetView.heading} pitch={question.streetView.pitch} fov={question.streetView.fov} apiKey={googleMapsApiKey} />
       <div className="streetview-vignette" />
 
       <div className="hud-top">

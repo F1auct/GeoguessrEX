@@ -17,6 +17,8 @@ function publicUser(row) {
     username: row.username,
     email: row.email,
     role: row.role,
+    orgName: row.org_name || "",
+    orgVerified: !!row.org_verified,
     createdAt: row.created_at
   };
 }
@@ -112,7 +114,7 @@ function validateRegistration({ username, email, password }) {
   return "";
 }
 
-export function registerUser({ username, email, password, adminCode }) {
+export function registerUser({ username, email, password, adminCode, accountType, orgName }) {
   const validationError = validateRegistration({ username, email, password });
   if (validationError) {
     return { status: 400, error: validationError };
@@ -137,6 +139,10 @@ export function registerUser({ username, email, password, adminCode }) {
     return { status: 403, error: "Invalid admin registration code." };
   }
 
+  const isOrg = accountType === "organization";
+  let role = wantsAdmin ? "admin" : "user";
+  const orgVerified = isOrg ? 0 : 0; // 组织需要审核
+
   const passwordHash = hashPassword(String(password));
   const user = {
     id: crypto.randomUUID(),
@@ -144,37 +150,29 @@ export function registerUser({ username, email, password, adminCode }) {
     usernameKey,
     email: String(email).trim(),
     emailKey,
-    role: wantsAdmin ? "admin" : "user",
+    role,
+    orgName: isOrg ? (orgName || "").trim() : "",
+    orgVerified: 0,
     createdAt: new Date().toISOString()
   };
 
   db.prepare(`
     INSERT INTO users (
-      id, username, username_key, email, email_key, role,
+      id, username, username_key, email, email_key, role, org_name, org_verified,
       password_hash, password_salt, password_iterations, password_key_length, password_digest, created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    user.id,
-    user.username,
-    user.usernameKey,
-    user.email,
-    user.emailKey,
-    user.role,
-    passwordHash.hash,
-    passwordHash.salt,
-    passwordHash.iterations,
-    passwordHash.keyLength,
-    passwordHash.digest,
+    user.id, user.username, user.usernameKey, user.email, user.emailKey,
+    user.role, user.orgName, user.orgVerified,
+    passwordHash.hash, passwordHash.salt, passwordHash.iterations, passwordHash.keyLength, passwordHash.digest,
     user.createdAt
   );
 
   return {
     user: publicUser({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
+      id: user.id, username: user.username, email: user.email,
+      role: user.role, org_name: user.orgName, org_verified: user.orgVerified,
       created_at: user.createdAt
     }),
     token: createToken(user)

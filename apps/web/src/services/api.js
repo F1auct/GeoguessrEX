@@ -194,3 +194,275 @@ export async function submitAnswer(payload, token) {
 
   return response.json();
 }
+
+// ── Wallet ──
+
+export async function fetchWallet(token) {
+  const response = await fetch(`${API_BASE}/wallet`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取钱包信息失败");
+}
+
+export async function rechargeWallet(amount, token) {
+  const response = await fetch(`${API_BASE}/wallet/recharge`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ amount })
+  });
+  return readJson(response, "充值失败");
+}
+
+export async function withdrawWallet(amount, token) {
+  const response = await fetch(`${API_BASE}/wallet/withdraw`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ amount })
+  });
+  return readJson(response, "提现失败");
+}
+
+export async function fetchTransactions(token) {
+  const response = await fetch(`${API_BASE}/wallet/transactions`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取交易记录失败");
+}
+
+// ── Bounties ──
+
+export async function fetchBounties(status = "") {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await fetch(`${API_BASE}/bounties${query}`);
+  return readJson(response, "获取悬赏列表失败");
+}
+
+export async function fetchBounty(id) {
+  const response = await fetch(`${API_BASE}/bounties/${id}`);
+  return readJson(response, "获取悬赏详情失败");
+}
+
+export async function createBounty(payload, token) {
+  const response = await fetch(`${API_BASE}/bounties`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "创建悬赏失败");
+}
+
+export async function submitBountyAnswer(bountyId, guess, token) {
+  const response = await fetch(`${API_BASE}/bounties/${bountyId}/submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ guess })
+  });
+  return readJson(response, "提交答案失败");
+}
+
+export async function closeBounty(bountyId, token) {
+  const response = await fetch(`${API_BASE}/bounties/${bountyId}/close`, {
+    method: "POST",
+    headers: authHeaders(token)
+  });
+  return readJson(response, "关闭悬赏失败");
+}
+
+export async function fetchBountySubmissions(bountyId, token) {
+  const response = await fetch(`${API_BASE}/bounties/${bountyId}/submissions`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取提交记录失败");
+}
+
+// ── Games ──
+
+export async function fetchGames({ region, gameType, status } = {}) {
+  const params = new URLSearchParams();
+  if (region) params.set("region", region);
+  if (gameType) params.set("gameType", gameType);
+  if (status) params.set("status", status);
+  const query = params.toString();
+  const response = await fetch(`${API_BASE}/games${query ? `?${query}` : ""}`);
+  return readJson(response, "获取游戏列表失败");
+}
+
+export async function fetchGame(id) {
+  const response = await fetch(`${API_BASE}/games/${id}`);
+  return readJson(response, "获取游戏详情失败");
+}
+
+export async function createGame(payload, token) {
+  const response = await fetch(`${API_BASE}/games`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "创建游戏失败");
+}
+
+export async function registerForGame(gameId, playerInfo, token) {
+  const response = await fetch(`${API_BASE}/games/${gameId}/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ playerInfo })
+  });
+  return readJson(response, "报名失败");
+}
+
+export async function fetchGameRegistrations(gameId, token) {
+  const response = await fetch(`${API_BASE}/games/${gameId}/registrations`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取报名列表失败");
+}
+
+export async function approveRegistration(gameId, regId, action, token) {
+  const response = await fetch(`${API_BASE}/games/${gameId}/registrations/${regId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ action })
+  });
+  return readJson(response, "审核报名失败");
+}
+
+export async function fetchGameProgress(gameId, token) {
+  const response = await fetch(`${API_BASE}/games/${gameId}/progress`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取进度失败");
+}
+
+export async function completeGameStep(gameId, payload, token) {
+  const response = await fetch(`${API_BASE}/games/${gameId}/progress/complete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "完成步骤失败");
+}
+
+// ── Community ──
+
+export async function fetchPosts({ category, region } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (region) params.set("region", region);
+  const query = params.toString();
+  const response = await fetch(`${API_BASE}/community${query ? `?${query}` : ""}`);
+  return readJson(response, "获取帖子列表失败");
+}
+
+export async function fetchPost(id) {
+  const response = await fetch(`${API_BASE}/community/${id}`);
+  return readJson(response, "获取帖子详情失败");
+}
+
+export async function fetchMyPosts(token) {
+  const response = await fetch(`${API_BASE}/community/my`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取我的帖子失败");
+}
+
+export async function createPost(payload, token) {
+  const response = await fetch(`${API_BASE}/community`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "发布帖子失败");
+}
+
+export async function deletePost(postId, token) {
+  const response = await fetch(`${API_BASE}/community/${postId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.error || "删除帖子失败");
+  }
+}
+
+// ── Uploads ──
+
+export async function uploadMedia(file, token) {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await fetch(`${API_BASE}/uploads/media`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body
+  });
+
+  return readJson(response, "上传失败");
+}
+
+// ── Reviews ──
+
+export async function fetchPendingReviews(token) {
+  const response = await fetch(`${API_BASE}/reviews/pending`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取待审核列表失败");
+}
+
+export async function fetchRevokedReviews(token) {
+  const response = await fetch(`${API_BASE}/reviews/revoked`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取已撤销列表失败");
+}
+
+export async function revokeReview(payload, token) {
+  const response = await fetch(`${API_BASE}/reviews/revoke`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "撤销审核失败");
+}
+
+export async function performReview(payload, token) {
+  const response = await fetch(`${API_BASE}/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(payload)
+  });
+  return readJson(response, "审核失败");
+}
