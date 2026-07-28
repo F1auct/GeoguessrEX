@@ -88,7 +88,8 @@ export default function WorldTourPage() {
     try {
       const result = await submitRouteAnswer(activeRoute.id, guess, token);
       setLastResult(result);
-      setStatus("result");
+      setView("result");
+      setStatus("ready");
     } catch (err) {
       setError(err.message);
       setStatus("ready");
@@ -101,13 +102,12 @@ export default function WorldTourPage() {
       setView("complete");
       return;
     }
-    // Advance to next stop
     const stops = activeRoute.stops;
     setCurrentStop(stops[lastResult.nextStopIndex]);
     setLastResult(null);
     setGuess(null);
     setMapExpanded(false);
-    // Refresh progress
+    setView("playing");
     fetchRouteProgress(activeRoute.id, token).then(p => setProgress(p)).catch(() => {});
     setStatus("ready");
   }
