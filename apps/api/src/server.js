@@ -23,6 +23,7 @@ import { registerUploadRoutes } from "./routes/uploads.js";
 import { registerWalletRoutes } from "./routes/wallet.js";
 import { registerRouteRoutes } from "./routes/routes.js";
 import { registerRankedRoutes } from "./routes/ranked.js";
+import { registerPeakRoutes } from "./routes/peak.js";
 import { initDatabase } from "./services/database.js";
 
 const app = express();
@@ -58,6 +59,7 @@ registerQuestionRoutes(app);
 registerSubmitRoute(app);
 registerRouteRoutes(app);
 registerRankedRoutes(app);
+registerPeakRoutes(app);
 
 app.listen(port, () => {
   console.log(`API listening on http://localhost:${port}`);

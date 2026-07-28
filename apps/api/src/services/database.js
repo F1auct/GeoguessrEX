@@ -236,6 +236,7 @@ function migrateNewFeatureTables() {
   migrateAddCharacterAndCardSystem();
   migrateAddWorldTour();
   migrateAddRankedSystem();
+  migrateAddPeakSystem();
 }
 
 function migrateAddPvPandStreakAndBR() {
@@ -891,6 +892,43 @@ function migrateAddRankedSystem() {
     CREATE INDEX IF NOT EXISTS idx_rank_queue_tier ON rank_queue(tier, joined_at);
     CREATE INDEX IF NOT EXISTS idx_rank_matches_winner ON rank_matches(winner_id);
     CREATE INDEX IF NOT EXISTS idx_rank_matches_loser ON rank_matches(loser_id);
+  `);
+}
+
+function migrateAddPeakSystem() {
+  const hasPeakScore = db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "peak_score");
+  if (!hasPeakScore) {
+    try { db.exec("ALTER TABLE users ADD COLUMN peak_score INTEGER NOT NULL DEFAULT 1200"); } catch {}
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS peak_matches (
+      id TEXT PRIMARY KEY,
+      winner_id TEXT NOT NULL,
+      loser_id TEXT NOT NULL,
+      winner_score_before INTEGER NOT NULL,
+      winner_score_after INTEGER NOT NULL,
+      loser_score_before INTEGER NOT NULL,
+      loser_score_after INTEGER NOT NULL,
+      winner_score_change INTEGER NOT NULL,
+      loser_score_change INTEGER NOT NULL,
+      season_id TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (winner_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (loser_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS peak_queue (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      peak_score INTEGER NOT NULL,
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_peak_matches_winner ON peak_matches(winner_id);
+    CREATE INDEX IF NOT EXISTS idx_peak_matches_loser ON peak_matches(loser_id);
+    CREATE INDEX IF NOT EXISTS idx_peak_queue_score ON peak_queue(peak_score);
   `);
 }
 
