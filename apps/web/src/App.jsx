@@ -30,6 +30,7 @@ import AdminReviewPage from "./pages/AdminReviewPage.jsx";
 import WorldTourPage from "./pages/WorldTourPage.jsx";
 import RankedPage from "./pages/RankedPage.jsx";
 import PeakPage from "./pages/PeakPage.jsx";
+import CountryStreakPage from "./pages/CountryStreakPage.jsx";
 
 function Layout() {
   return (
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="game/:groupId" element={<GamePage />} />
           <Route path="pvp" element={<PvPPage />} />
           <Route path="br" element={<BRPage />} />
+          <Route path="country-streak" element={<CountryStreakPage />} />
         </Route>
       </Routes>
     </AuthProvider>

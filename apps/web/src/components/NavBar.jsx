@@ -56,6 +56,7 @@ export default function NavBar() {
           <Link to="/pvp" className="nav-dropdown-item" onClick={() => {}}>⚔️ 1v1 对战</Link>
           <Link to="/br" className="nav-dropdown-item" onClick={() => {}}>🔥 大逃杀</Link>
           <Link to="/daily" className="nav-dropdown-item" onClick={() => {}}>📅 每日挑战</Link>
+          <Link to="/country-streak" className="nav-dropdown-item" onClick={() => {}}>🔥 国家连击</Link>
         </Dropdown>
 
         <Dropdown label="🔍 发现">
