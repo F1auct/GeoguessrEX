@@ -57,6 +57,7 @@ export default function NavBar() {
         </Dropdown>
 
         <Dropdown label="🔍 发现">
+          <Link to="/world-tour" className="nav-dropdown-item" onClick={() => {}}>🌍 环球之旅</Link>
           <Link to="/season" className="nav-dropdown-item" onClick={() => {}}>🏆 赛季通行证</Link>
         <Link to="/leaderboard" className="nav-dropdown-item" onClick={() => {}}>🏅 排行榜</Link>
           <Link to="/games" className="nav-dropdown-item" onClick={() => {}}>🗺️ 藏宝游戏</Link>

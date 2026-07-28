@@ -466,3 +466,49 @@ export async function performReview(payload, token) {
   });
   return readJson(response, "审核失败");
 }
+
+// ── Routes (World Tour) ──
+
+export async function fetchRoutes() {
+  const response = await fetch(`${API_BASE}/routes`);
+  return readJson(response, "获取路线列表失败");
+}
+
+export async function fetchRouteDetail(routeId) {
+  const response = await fetch(`${API_BASE}/routes/${routeId}`);
+  return readJson(response, "获取路线详情失败");
+}
+
+export async function startRoute(routeId, token) {
+  const response = await fetch(`${API_BASE}/routes/${routeId}/start`, {
+    method: "POST",
+    headers: authHeaders(token)
+  });
+  return readJson(response, "开始路线失败");
+}
+
+export async function fetchRouteProgress(routeId, token) {
+  const response = await fetch(`${API_BASE}/routes/${routeId}/progress`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取进度失败");
+}
+
+export async function fetchAllRouteProgress(token) {
+  const response = await fetch(`${API_BASE}/routes/my/progress`, {
+    headers: authHeaders(token)
+  });
+  return readJson(response, "获取路线进度失败");
+}
+
+export async function submitRouteAnswer(routeId, guess, token) {
+  const response = await fetch(`${API_BASE}/routes/${routeId}/submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify({ guess })
+  });
+  return readJson(response, "提交失败");
+}
