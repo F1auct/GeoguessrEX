@@ -237,6 +237,7 @@ function migrateNewFeatureTables() {
   migrateAddWorldTour();
   migrateAddRankedSystem();
   migrateAddPeakSystem();
+  migrateAddSeasonQuests();
 }
 
 function migrateAddPvPandStreakAndBR() {
@@ -930,6 +931,77 @@ function migrateAddPeakSystem() {
     CREATE INDEX IF NOT EXISTS idx_peak_matches_loser ON peak_matches(loser_id);
     CREATE INDEX IF NOT EXISTS idx_peak_queue_score ON peak_queue(peak_score);
   `);
+}
+
+function migrateAddSeasonQuests() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS season_quests (
+      id TEXT PRIMARY KEY,
+      quest_type TEXT NOT NULL CHECK (quest_type IN ('daily','weekly','season')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      target_type TEXT NOT NULL,
+      target_count INTEGER NOT NULL DEFAULT 1,
+      reward_xp INTEGER NOT NULL DEFAULT 50,
+      reward_coin INTEGER NOT NULL DEFAULT 0,
+      season_id TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS user_quest_progress (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      quest_id TEXT NOT NULL,
+      current_count INTEGER NOT NULL DEFAULT 0,
+      completed INTEGER NOT NULL DEFAULT 0,
+      claimed INTEGER NOT NULL DEFAULT 0,
+      date TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (quest_id) REFERENCES season_quests(id) ON DELETE CASCADE,
+      UNIQUE(user_id, quest_id, date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_quest_progress_user ON user_quest_progress(user_id, date);
+  `);
+
+  // Seed initial quests if empty
+  const count = db.prepare("SELECT COUNT(*) AS count FROM season_quests").get().count;
+  if (count > 0) return;
+
+  const now = new Date().toISOString();
+  const insert = db.prepare(`
+    INSERT INTO season_quests (id, quest_type, title, description, target_type, target_count, reward_xp, reward_coin, season_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+  `);
+
+  const quests = [
+    // 日常
+    { id: "dq_ranked_3", type: "daily", title: "排位高手", desc: "完成 3 局排位赛", target: "ranked_games", count: 3, xp: 50, coin: 10 },
+    { id: "dq_asia_5", type: "daily", title: "亚洲通", desc: "在亚洲国家猜对 5 次", target: "asia_correct", count: 5, xp: 30, coin: 5 },
+    { id: "dq_score_4000", type: "daily", title: "精准一击", desc: "单局得分 ≥ 4000", target: "high_score", count: 1, xp: 40, coin: 10 },
+    { id: "dq_pvp_win", type: "daily", title: "对战之星", desc: "赢得 1 局 PvP 对战", target: "pvp_win", count: 1, xp: 40, coin: 10 },
+    { id: "dq_submit", type: "daily", title: "贡献者", desc: "提交 1 道题目进入审核", target: "question_submit", count: 1, xp: 30, coin: 5 },
+    // 周常
+    { id: "wq_ranked_10", type: "weekly", title: "排位狂热", desc: "排位赛胜利 10 局", target: "ranked_wins", count: 10, xp: 300, coin: 50 },
+    { id: "wq_countries_5", type: "weekly", title: "环球旅行家", desc: "在 5 个不同国家猜对位置", target: "countries_correct", count: 5, xp: 200, coin: 30 },
+    { id: "wq_streak_7", type: "weekly", title: "坚持不懈", desc: "连续 7 天签到", target: "checkin_streak", count: 7, xp: 250, coin: 40 },
+    { id: "wq_peak_3", type: "weekly", title: "巅峰之路", desc: "完成 3 局巅峰赛", target: "peak_games", count: 3, xp: 200, coin: 40 },
+    { id: "wq_route_1", type: "weekly", title: "环球旅者", desc: "完成 1 条环球之旅路线", target: "route_complete", count: 1, xp: 350, coin: 60 },
+    // 赛季
+    { id: "sq_gold", type: "season", title: "黄金强者", desc: "达到黄金段位", target: "rank_tier_gold", count: 1, xp: 1000, coin: 100 },
+    { id: "sq_100_ranked", type: "season", title: "排位百战", desc: "完成 100 局排位赛", target: "ranked_games_total", count: 100, xp: 800, coin: 80 },
+    { id: "sq_peak_win_3", type: "season", title: "巅峰强者", desc: "巅峰赛胜利 3 局", target: "peak_wins", count: 3, xp: 1200, coin: 150 },
+  ];
+
+  db.exec("BEGIN");
+  try {
+    for (const q of quests) insert.run(q.id, q.type, q.title, q.desc, q.target, q.count, q.xp, q.coin, now);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 function cryptoRandomId(prefix) {

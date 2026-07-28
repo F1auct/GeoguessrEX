@@ -8,17 +8,34 @@ export default function SeasonPage() {
   const [season, setSeason] = useState(null);
   const [pass, setPass] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [quests, setQuests] = useState(null);
+  const [tab, setTab] = useState("pass"); // pass | quests | leaderboard
   const [status, setStatus] = useState("loading");
+
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   useEffect(() => {
     Promise.all([
       fetch(`${API}/season`).then(r => r.json()),
-      token ? fetch(`${API}/season/pass`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null) : null,
-      fetch(`${API}/season/leaderboard`).then(r => r.json())
-    ]).then(([s, p, lb]) => {
-      setSeason(s); setPass(p); setLeaderboard(lb.items || []); setStatus("ready");
+      token ? fetch(`${API}/season/pass`, { headers: authHeaders }).then(r => r.json()).catch(() => null) : null,
+      fetch(`${API}/season/leaderboard`).then(r => r.json()),
+      token ? fetch(`${API}/quests`, { headers: authHeaders }).then(r => r.json()).catch(() => null) : null,
+    ]).then(([s, p, lb, q]) => {
+      setSeason(s); setPass(p); setLeaderboard(lb.items || []); setQuests(q); setStatus("ready");
     }).catch(() => setStatus("error"));
   }, [token]);
+
+  async function claimQuest(questId) {
+    try {
+      const res = await fetch(`${API}/quests/${questId}/claim`, { method: "POST", headers: authHeaders });
+      const data = await res.json();
+      if (data.claimed) {
+        // Refresh quests
+        const qRes = await fetch(`${API}/quests`, { headers: authHeaders });
+        setQuests(await qRes.json());
+      }
+    } catch {}
+  }
 
   if (status === "loading") return <div className="status-shell">加载赛季...</div>;
   if (!season) return <div className="status-shell">暂无赛季数据</div>;
@@ -64,7 +81,76 @@ export default function SeasonPage() {
         </div>
       </section>
 
-      {/* 奖励路线 */}
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, margin: "20px 0", justifyContent: "center" }}>
+        {[
+          { key: "pass", label: "🎁 赛季奖励" },
+          { key: "quests", label: "📋 赛季任务" },
+          { key: "leaderboard", label: "🏆 排行榜" },
+        ].map(t => (
+          <button key={t.key} className={tab === t.key ? "primary-btn" : "secondary-btn"} onClick={() => setTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Quests Panel */}
+      {tab === "quests" && quests ? (
+        <section>
+          {["daily", "weekly", "season"].map(qt => {
+            const items = (quests[qt] || []).filter(q => q.quest_type === qt);
+            if (!items.length) return null;
+            return (
+              <div key={qt} style={{ marginBottom: 20 }}>
+                <h3 style={{ margin: "0 0 12px 0" }}>
+                  {{ daily: "📅 日常任务", weekly: "📆 周常任务", season: "🏅 赛季任务" }[qt]}
+                </h3>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {items.map(q => {
+                    const prog = q.progress || {};
+                    const done = prog.completed;
+                    const claimed = prog.claimed;
+                    const pct = Math.min(100, Math.round(((prog.current_count || 0) / q.target_count) * 100));
+                    return (
+                      <div key={q.id} className="card" style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                        opacity: claimed ? 0.5 : 1,
+                      }}>
+                        <span style={{ fontSize: "1.3rem" }}>{claimed ? "✅" : done ? "🎉" : "⬜"}</span>
+                        <div style={{ flex: 1 }}>
+                          <strong>{q.title}</strong>
+                          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.8rem" }}>{q.description}</p>
+                          <div style={{
+                            height: 4, background: "rgba(0,0,0,0.08)", borderRadius: 2, marginTop: 6,
+                            overflow: "hidden",
+                          }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: done ? "var(--green)" : "var(--accent)", borderRadius: 2, transition: "width 0.3s" }} />
+                          </div>
+                          <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>
+                            {prog.current_count || 0}/{q.target_count}
+                          </span>
+                        </div>
+                        <div style={{ textAlign: "right", minWidth: 80 }}>
+                          <span style={{ color: "var(--green)", fontWeight: 600, fontSize: "0.85rem" }}>+{q.reward_xp} XP</span>
+                          {q.reward_coin > 0 ? <span style={{ color: "var(--accent)", fontSize: "0.8rem", display: "block" }}>+{q.reward_coin} 🪙</span> : null}
+                          {done && !claimed ? (
+                            <button className="primary-btn" style={{ padding: "4px 12px", fontSize: "0.8rem", marginTop: 4 }} onClick={() => claimQuest(q.id)}>
+                              领取
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+
+      {/* Rewards Panel (pass tab) */}
+      {tab === "pass" ? (
       <section className="season-rewards">
         <h3>🎁 赛季奖励</h3>
         <div className="season-rewards-scroll">
@@ -83,7 +169,8 @@ export default function SeasonPage() {
         </div>
       </section>
 
-      {/* 排行榜 */}
+      {/* Leaderboard */}
+      {tab === "leaderboard" ? (
       <section className="card" style={{ padding: 0 }}>
         <div className="team-lb-header"><h3>🏆 赛季排行榜</h3></div>
         {leaderboard.length > 0 ? (
@@ -98,6 +185,10 @@ export default function SeasonPage() {
           </div>
         ) : <p className="team-lb-empty">暂无排行</p>}
       </section>
+      ) : null}
+
+      </section>
+      ) : null}
 
       {/* 如何获得赛季经验 */}
       <div className="detail-info-strip">
