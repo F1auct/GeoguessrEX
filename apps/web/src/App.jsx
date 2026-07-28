@@ -28,6 +28,7 @@ import PvPPage from "./pages/PvPPage.jsx";
 import BRPage from "./pages/BRPage.jsx";
 import AdminReviewPage from "./pages/AdminReviewPage.jsx";
 import WorldTourPage from "./pages/WorldTourPage.jsx";
+import RankedPage from "./pages/RankedPage.jsx";
 
 function Layout() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="teams" element={<TeamsPage />} />
             <Route path="season" element={<SeasonPage />} />
             <Route path="world-tour" element={<WorldTourPage />} />
+            <Route path="ranked" element={<RankedPage />} />
           </Route>
           <Route path="admin/reviews" element={<AdminReviewPage />} />
           <Route path="game/:groupId" element={<GamePage />} />

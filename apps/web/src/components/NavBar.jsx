@@ -51,6 +51,7 @@ export default function NavBar() {
         <Link to="/" className="nav-brand">GeoGuessrEX</Link>
 
         <Dropdown label="⚡ 竞技">
+          <Link to="/ranked" className="nav-dropdown-item" onClick={() => {}}>🏅 排位赛</Link>
           <Link to="/pvp" className="nav-dropdown-item" onClick={() => {}}>⚔️ 1v1 对战</Link>
           <Link to="/br" className="nav-dropdown-item" onClick={() => {}}>🔥 大逃杀</Link>
           <Link to="/daily" className="nav-dropdown-item" onClick={() => {}}>📅 每日挑战</Link>

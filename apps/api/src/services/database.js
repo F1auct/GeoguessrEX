@@ -235,6 +235,7 @@ function migrateNewFeatureTables() {
   migrateAddPvPandStreakAndBR();
   migrateAddCharacterAndCardSystem();
   migrateAddWorldTour();
+  migrateAddRankedSystem();
 }
 
 function migrateAddPvPandStreakAndBR() {
@@ -851,6 +852,46 @@ function migrateAddWorldTour() {
     db.exec("ROLLBACK");
     throw err;
   }
+}
+
+function migrateAddRankedSystem() {
+  // users 表新增排位字段
+  const hasRankTier = db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "rank_tier");
+  if (!hasRankTier) {
+    try { db.exec("ALTER TABLE users ADD COLUMN rank_tier TEXT NOT NULL DEFAULT 'bronze'"); } catch {}
+    try { db.exec("ALTER TABLE users ADD COLUMN rank_stars INTEGER NOT NULL DEFAULT 0"); } catch {}
+    try { db.exec("ALTER TABLE users ADD COLUMN rank_updated_at TEXT"); } catch {}
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rank_matches (
+      id TEXT PRIMARY KEY,
+      winner_id TEXT NOT NULL,
+      loser_id TEXT NOT NULL,
+      winner_tier_before TEXT NOT NULL,
+      winner_stars_before INTEGER NOT NULL,
+      loser_tier_before TEXT NOT NULL,
+      loser_stars_before INTEGER NOT NULL,
+      winner_stars_change INTEGER NOT NULL,
+      loser_stars_change INTEGER NOT NULL,
+      room_id TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (winner_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (loser_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS rank_queue (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      tier TEXT NOT NULL,
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_rank_queue_tier ON rank_queue(tier, joined_at);
+    CREATE INDEX IF NOT EXISTS idx_rank_matches_winner ON rank_matches(winner_id);
+    CREATE INDEX IF NOT EXISTS idx_rank_matches_loser ON rank_matches(loser_id);
+  `);
 }
 
 function cryptoRandomId(prefix) {
