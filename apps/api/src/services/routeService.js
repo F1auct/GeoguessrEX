@@ -115,6 +115,7 @@ export function submitStopAnswer(userId, routeId, guess) {
 
   return {
     stop: { title: stop.title, lat: stop.lat, lng: stop.lng },
+    answer: { lat: stop.lat, lng: stop.lng },
     guess: { lat: guess.lat, lng: guess.lng },
     distanceKm: Math.round(distanceKm * 100) / 100,
     score,

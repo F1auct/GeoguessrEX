@@ -88,7 +88,6 @@ export default function WorldTourPage() {
     try {
       const result = await submitRouteAnswer(activeRoute.id, guess, token);
       setLastResult(result);
-      setView("result");
       setStatus("ready");
     } catch (err) {
       setError(err.message);
@@ -295,7 +294,7 @@ export default function WorldTourPage() {
         </div>
 
         {/* Result overlay */}
-        {view === "result" && lastResult ? (
+        {lastResult ? (
           <div style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 300,
             display: "grid", placeItems: "center", padding: 32,

@@ -168,6 +168,7 @@ export default function SeasonPage() {
           })}
         </div>
       </section>
+      ) : null}
 
       {/* Leaderboard */}
       {tab === "leaderboard" ? (
@@ -184,9 +185,6 @@ export default function SeasonPage() {
             ))}
           </div>
         ) : <p className="team-lb-empty">暂无排行</p>}
-      </section>
-      ) : null}
-
       </section>
       ) : null}
 
