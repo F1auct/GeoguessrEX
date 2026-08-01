@@ -19,7 +19,9 @@ export default function AuthPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    adminCode: ""
+    adminCode: "",
+    accountType: "user",
+    orgName: ""
   });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -69,7 +71,9 @@ export default function AuthPage() {
             username: form.username,
             email: form.email,
             password: form.password,
-            adminCode: form.adminCode.trim() || undefined
+            adminCode: form.adminCode.trim() || undefined,
+            accountType: form.accountType,
+            orgName: form.orgName
           })
         : await loginAccount({
             identifier: form.identifier,
@@ -136,6 +140,16 @@ export default function AuthPage() {
 
             {isRegistering ? (
               <>
+                <div className="auth-tabs" style={{ marginBottom: 12 }}>
+                  <button type="button" className={form.accountType === "user" ? "active" : ""} onClick={() => setForm(f => ({ ...f, accountType: "user" }))}>个人</button>
+                  <button type="button" className={form.accountType === "organization" ? "active" : ""} onClick={() => setForm(f => ({ ...f, accountType: "organization" }))}>组织</button>
+                </div>
+                {form.accountType === "organization" ? (
+                  <label>
+                    <span>组织名称</span>
+                    <input name="orgName" value={form.orgName} onChange={updateField} placeholder="武汉大学探险社" required />
+                  </label>
+                ) : null}
                 <label>
                   <span>用户名</span>
                   <input

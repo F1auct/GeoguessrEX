@@ -1,0 +1,150 @@
+[
+  {
+    "id": "hourglass",
+    "name": "时间沙漏",
+    "nameEn": "Hourglass",
+    "emoji": "⏳",
+    "rarity": "common",
+    "weight": 15,
+    "description": "本回合获得额外45秒猜测时间，且地图缩放等级+1",
+    "flavor": "让时间站在你这边。",
+    "color": "#8c8c8c",
+    "effect": {
+      "type": "time_and_zoom",
+      "extraTime": 45,
+      "zoomBonus": 1
+    }
+  },
+  {
+    "id": "lucky_coin",
+    "name": "幸运硬币",
+    "nameEn": "Lucky Coin",
+    "emoji": "🪙",
+    "rarity": "common",
+    "weight": 15,
+    "description": "本回合得分下限锁定为800分",
+    "flavor": "至少不会太糟。",
+    "color": "#c4a030",
+    "effect": {
+      "type": "score_floor",
+      "minScore": 800
+    }
+  },
+  {
+    "id": "tailwind",
+    "name": "顺风",
+    "nameEn": "Tailwind",
+    "emoji": "🌤️",
+    "rarity": "common",
+    "weight": 15,
+    "description": "本回合你的猜测点自动向正确方向偏移50km",
+    "flavor": "一股有利的风推动你前行。",
+    "color": "#5cacdc",
+    "effect": {
+      "type": "guess_offset",
+      "offsetKm": 50
+    }
+  },
+  {
+    "id": "magnifier",
+    "name": "放大镜",
+    "nameEn": "Magnifier",
+    "emoji": "🔍",
+    "rarity": "common",
+    "weight": 15,
+    "description": "本回合街景画面缩放级别提升至最高",
+    "flavor": "细节是魔鬼。",
+    "color": "#6cacdc",
+    "effect": {
+      "type": "streetview_zoom",
+      "zoomLevel": "max"
+    }
+  },
+  {
+    "id": "mirror",
+    "name": "镜像",
+    "nameEn": "Mirror",
+    "emoji": "🪞",
+    "rarity": "rare",
+    "weight": 8,
+    "description": "本回合复制对手/最高分存活玩家的角色被动技能",
+    "flavor": "以彼之道，还施彼身。",
+    "color": "#acacdc",
+    "effect": {
+      "type": "copy_passive"
+    }
+  },
+  {
+    "id": "smoke_bomb",
+    "name": "烟雾弹",
+    "nameEn": "Smoke Bomb",
+    "emoji": "🌫️",
+    "rarity": "rare",
+    "weight": 8,
+    "description": "下回合所有对手地图上不显示城市名和国家边界",
+    "flavor": "让他们在迷雾中摸索。",
+    "color": "#7c7c8c",
+    "effect": {
+      "type": "opponent_map_fog",
+      "duration": 1
+    }
+  },
+  {
+    "id": "rewind",
+    "name": "回溯",
+    "nameEn": "Rewind",
+    "emoji": "🔄",
+    "rarity": "rare",
+    "weight": 8,
+    "description": "提交后可撤回并重猜一次，取两次中较高分",
+    "flavor": "如果当时选了另一个点...",
+    "color": "#ac7c4a",
+    "effect": {
+      "type": "rewind"
+    }
+  },
+  {
+    "id": "guidance",
+    "name": "制导系统",
+    "nameEn": "Guidance System",
+    "emoji": "🎯",
+    "rarity": "epic",
+    "weight": 4,
+    "description": "本回合在地图上显示一个800km半径圈，正确位置必在其中",
+    "flavor": "精确打击已就绪。",
+    "color": "#dc4a30",
+    "effect": {
+      "type": "guidance_circle",
+      "radiusKm": 800
+    }
+  },
+  {
+    "id": "fate_reversal",
+    "name": "命运逆转",
+    "nameEn": "Fate Reversal",
+    "emoji": "🃏",
+    "rarity": "epic",
+    "weight": 4,
+    "description": "本回合结算后将你的得分与随机一名对手交换",
+    "flavor": "不到最后一刻，谁知道呢？",
+    "color": "#9c3cac",
+    "effect": {
+      "type": "swap_score"
+    }
+  },
+  {
+    "id": "chosen_one",
+    "name": "天选之人",
+    "nameEn": "The Chosen One",
+    "emoji": "🌟",
+    "rarity": "legendary",
+    "weight": 2,
+    "description": "本回合直接获得5000分满分。使用后永久移出你的牌库。",
+    "flavor": "这一轮，世界是你的。",
+    "color": "#f0c040",
+    "effect": {
+      "type": "perfect_score",
+      "score": 5000
+    }
+  }
+]

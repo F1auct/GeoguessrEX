@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════
+   Design Tokens — GeoGuessrEX
+   ═══════════════════════════════════════════ */
+
+:root {
+  /* ── Palette ── */
+  --bg: #ebe4d6;
+  --panel: rgba(246, 241, 232, 0.9);
+  --panel-strong: #fbf6ee;
+  --ink: #131a1e;
+  --muted: #5b625a;
+  --line: rgba(19, 26, 30, 0.12);
+  --accent: #b44d28;
+  --accent-dark: #7f2d15;
+  --green: #244c47;
+  --sand: #d6b88f;
+  --danger: #8c3b2a;
+  --shadow: 0 28px 80px rgba(23, 28, 31, 0.18);
+
+  /* ── Typography ── */
+  --font-body: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-display: Georgia, "Times New Roman", serif;
+
+  /* ── Spacing ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* ── Radii ── */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-xl: 38px;
+
+  /* ── Transitions ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 180ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ── Z-index scale ── */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 500;
+  --z-modal: 600;
+  --z-toast: 700;
+}

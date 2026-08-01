@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { gcj02ToWgs84, wgs84ToGcj02 } from "../services/coordTransform.js";
 import { loadAmap } from "../services/amapLoader.js";
 
@@ -6,8 +6,22 @@ export default function AmapGuessMap({ value, onChange, apiKey }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const onChangeRef = useRef(onChange);
   const [loadError, setLoadError] = useState("");
   const [mapReady, setMapReady] = useState(false);
+
+  // 保持 onChange 引用最新，避免因父组件重渲染导致地图重建
+  onChangeRef.current = onChange;
+
+  // 用 ref 包裹 click handler，避免闭包陈旧引用
+  const handleMapClick = useCallback((event) => {
+    const clickedGcj = event.lnglat;
+    const clickedWgs = gcj02ToWgs84(clickedGcj.lng, clickedGcj.lat);
+    onChangeRef.current({
+      lat: clickedWgs.lat,
+      lng: clickedWgs.lng
+    });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -25,15 +39,7 @@ export default function AmapGuessMap({ value, onChange, apiKey }) {
           mapStyle: "amap://styles/whitesmoke"
         });
 
-        map.on("click", (event) => {
-          const clickedGcj = event.lnglat;
-          const clickedWgs = gcj02ToWgs84(clickedGcj.lng, clickedGcj.lat);
-
-          onChange({
-            lat: clickedWgs.lat,
-            lng: clickedWgs.lng
-          });
-        });
+        map.on("click", handleMapClick);
 
         mapRef.current = map;
         setMapReady(true);
@@ -54,7 +60,7 @@ export default function AmapGuessMap({ value, onChange, apiKey }) {
       markerRef.current = null;
       setMapReady(false);
     };
-  }, [apiKey, onChange]);
+  }, [apiKey]); // 移除 onChange 依赖 —— 通过 ref 始终保持最新
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !window.AMap) {
