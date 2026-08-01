@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { closeBounty, fetchBounty, submitBountyAnswer } from "../services/api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import MediaGallery from "../components/MediaGallery.jsx";
+import AmapGuessMap from "../components/AmapGuessMap.jsx";
 
 const STATUS_CONFIG = {
   active: { label: "进行中", icon: "🟢", color: "#1a5c4a", bg: "rgba(36, 76, 71, 0.08)" },
@@ -14,10 +15,11 @@ export default function BountyDetailPage() {
   const { id } = useParams();
   const { token, user } = useAuth();
   const navigate = useNavigate();
+  const amapApiKey = import.meta.env.VITE_AMAP_API_KEY || "";
   const [bounty, setBounty] = useState(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
-  const [guess, setGuess] = useState({ lat: "", lng: "" });
+  const [guess, setGuess] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [timeLeft, setTimeLeft] = useState("");
@@ -54,7 +56,7 @@ export default function BountyDetailPage() {
   async function handleSubmit() {
     setSubmitting(true); setError("");
     try {
-      const res = await submitBountyAnswer(id, { lat: Number(guess.lat), lng: Number(guess.lng) }, token);
+      const res = await submitBountyAnswer(id, { lat: guess.lat, lng: guess.lng }, token);
       setResult(res);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
@@ -128,9 +130,9 @@ export default function BountyDetailPage() {
 
       {/* 描述 + 媒体 */}
       <section className="detail-body">
-        {bounty.description ? <div className="detail-text">{bounty.description}</div> : <p className="detail-empty-text">发布者未提供额外描述，请根据坐标线索寻找目标地点。</p>}
+        {bounty.description ? <div className="detail-text">{bounty.description}</div> : <p className="detail-empty-text">发布者未提供额外描述，请根据线索图片在地图上猜出目标位置。</p>}
         {bounty.questionData?.mediaList?.length > 0 ? (
-          <div className="detail-media-section"><h3>📷 线索素材</h3><MediaGallery mediaList={bounty.questionData.mediaList} /></div>
+          <div className="detail-media-section clue-media-section"><h3>📷 线索素材</h3><MediaGallery mediaList={bounty.questionData.mediaList} /></div>
         ) : null}
       </section>
 
@@ -147,13 +149,16 @@ export default function BountyDetailPage() {
 
       {/* 答题 */}
       {isActive && !isCreator && !result ? (
-        <div className="detail-guess-bar">
-          <strong>🎯 提交你的答案</strong>
-          <input type="number" step="any" placeholder="纬度" value={guess.lat} onChange={(e) => setGuess((p) => ({ ...p, lat: e.target.value }))} />
-          <input type="number" step="any" placeholder="经度" value={guess.lng} onChange={(e) => setGuess((p) => ({ ...p, lng: e.target.value }))} />
-          <button className="primary-btn" onClick={handleSubmit} disabled={submitting || !guess.lat || !guess.lng}>
-            {submitting ? "提交中..." : "🚀 提交"}
-          </button>
+        <div className="detail-body">
+          <h3>🎯 在地图上点选你的答案</h3>
+          <p className="hint-text">点击地图放置标记，确认位置后提交。</p>
+          <AmapGuessMap value={guess} onChange={setGuess} apiKey={amapApiKey} />
+          <div className="detail-guess-bar" style={{ marginTop: 14 }}>
+            <strong>你的选择：{guess ? `${guess.lat.toFixed(4)}, ${guess.lng.toFixed(4)}` : "尚未选择"}</strong>
+            <button className="primary-btn" onClick={handleSubmit} disabled={submitting || !guess}>
+              {submitting ? "提交中..." : "🚀 提交"}
+            </button>
+          </div>
         </div>
       ) : null}
 

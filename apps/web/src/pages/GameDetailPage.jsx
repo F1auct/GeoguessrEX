@@ -112,7 +112,7 @@ export default function GameDetailPage() {
       ) : null}
 
       {game.mediaList?.length > 0 ? (
-        <section className="detail-body"><h3>📷 游戏素材</h3><MediaGallery mediaList={game.mediaList} /></section>
+        <section className="detail-body"><h3>📷 游戏素材</h3><div className="clue-media-section"><MediaGallery mediaList={game.mediaList} /></div></section>
       ) : null}
 
       {/* 流程步骤 */}

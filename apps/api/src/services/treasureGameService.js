@@ -22,7 +22,7 @@ function safeParseJson(value) {
 export function createGame(userId, payload) {
   const {
     title, description, gameType, region,
-    requirePlayerInfo, playerInfoFields, locationTasks
+    requirePlayerInfo, playerInfoFields, locationTasks, mediaList
   } = payload || {};
 
   if (!title || typeof title !== "string" || !title.trim()) {
@@ -51,14 +51,15 @@ export function createGame(userId, payload) {
   db.prepare(`
     INSERT INTO treasure_games (
       id, creator_id, title, description, game_type, region,
-      require_player_info, player_info_fields, status, created_at, updated_at
+      require_player_info, player_info_fields, status, media_list, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, ?, ?)
   `).run(
     gameId, userId, title.trim(), (description || "").trim(), gameType,
     (region || "").trim(),
     requirePlayerInfo ? 1 : 0,
     JSON.stringify(playerInfoFields || []),
+    JSON.stringify(mediaList || []),
     ts, ts
   );
 
@@ -118,6 +119,7 @@ function gameRowToPublic(row, tasks = []) {
     region: row.region,
     requirePlayerInfo: !!row.require_player_info,
     playerInfoFields: safeParseJson(row.player_info_fields),
+    mediaList: safeParseJson(row.media_list),
     status: row.status,
     creatorId: row.creator_id,
     creatorUsername: row.creator_username || "未知用户",

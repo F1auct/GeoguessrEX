@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { createBounty } from "../services/api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import MediaUploader from "../components/MediaUploader.jsx";
+import AmapGuessMap from "../components/AmapGuessMap.jsx";
 
 export default function BountyCreatePage() {
   const { token } = useAuth();
   const navigate = useNavigate();
+  const amapApiKey = import.meta.env.VITE_AMAP_API_KEY || "";
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -15,12 +17,18 @@ export default function BountyCreatePage() {
     lat: "",
     lng: ""
   });
+  const [target, setTarget] = useState(null);
   const [mediaList, setMediaList] = useState([]);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function handleTargetPick(pt) {
+    setTarget(pt);
+    setForm((prev) => ({ ...prev, lat: pt ? String(pt.lat) : "", lng: pt ? String(pt.lng) : "" }));
   }
 
   async function handleSubmit(e) {
@@ -54,7 +62,7 @@ export default function BountyCreatePage() {
         <div>
           <p className="hero-kicker">Create Bounty</p>
           <h1>发布悬赏</h1>
-          <p className="hero-copy">设置目标坐标和赏金，可上传图片、视频和文字描述，看谁先找到准确位置。</p>
+          <p className="hero-copy">上传线索图片，在地图上点选目标位置，设置赏金，看谁先找到准确地点。</p>
         </div>
         <button className="secondary-btn" onClick={() => navigate("/bounties")}>
           返回列表
@@ -84,20 +92,12 @@ export default function BountyCreatePage() {
             <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} required />
           </label>
         </div>
-        <div className="eyebrow">目标坐标</div>
-        <div className="form-row">
-          <label>
-            <span>纬度</span>
-            <input name="lat" type="number" step="any" value={form.lat} onChange={handleChange} placeholder="39.9042" required />
-          </label>
-          <label>
-            <span>经度</span>
-            <input name="lng" type="number" step="any" value={form.lng} onChange={handleChange} placeholder="116.4074" required />
-          </label>
-        </div>
+        <div className="eyebrow">目标坐标（在地图上点选）</div>
+        <AmapGuessMap value={target} onChange={handleTargetPick} apiKey={amapApiKey} />
+        <p className="hint-text">{target ? `已选目标：${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}` : "点击地图选择目标位置"}</p>
 
         <div className="form-actions">
-          <button className="primary-btn" type="submit" disabled={status === "submitting"}>
+          <button className="primary-btn" type="submit" disabled={status === "submitting" || !target}>
             {status === "submitting" ? "发布中..." : "发布悬赏（将扣除金币）"}
           </button>
           {error ? <p className="error-text">{error}</p> : null}

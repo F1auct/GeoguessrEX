@@ -244,6 +244,7 @@ export default function WorldTourPage() {
           lat={currentStop.lat} lng={currentStop.lng}
           heading={currentStop.heading} pitch={currentStop.pitch} fov={currentStop.fov || 100}
           apiKey={googleMapsApiKey}
+          pano={currentStop.pano_id}
         />
         <div className="streetview-vignette" />
 
