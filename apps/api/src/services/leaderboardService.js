@@ -100,7 +100,7 @@ export function getLeaderboard({ type = "score", period = "all" }) {
       userId: row.id,
       username: row.username,
       value: row.value || 0,
-      display: `💰 ${row.value || 0}`
+      display: `${row.value || 0} 金币`
     }));
   }
 

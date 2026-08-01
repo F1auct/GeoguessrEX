@@ -91,7 +91,7 @@ export function getAllQuestProgress(userId) {
   const weekly = getUserQuestProgress(userId, getWeekStart());
   return {
     daily: daily.filter(q => q.quest_type === "daily"),
-    weekly: daily.filter(q => q.quest_type === "weekly"),
+    weekly: weekly.filter(q => q.quest_type === "weekly"),
     season: daily.filter(q => q.quest_type === "season"),
   };
 }

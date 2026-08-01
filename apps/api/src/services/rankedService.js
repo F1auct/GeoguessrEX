@@ -176,7 +176,8 @@ function addStars(tier, stars, delta) {
 
 /** 排位排行榜 */
 export function getRankedLeaderboard(limit = 50) {
-  const users = db.prepare("SELECT id, username, rank_tier, rank_stars FROM users ORDER BY rank_tier DESC, rank_stars DESC LIMIT ?").all(limit);
+  const tierOrder = "CASE rank_tier WHEN 'grandmaster' THEN 7 WHEN 'master' THEN 6 WHEN 'diamond' THEN 5 WHEN 'platinum' THEN 4 WHEN 'gold' THEN 3 WHEN 'silver' THEN 2 WHEN 'bronze' THEN 1 ELSE 0 END";
+  const users = db.prepare(`SELECT id, username, rank_tier, rank_stars FROM users ORDER BY ${tierOrder} DESC, rank_stars DESC LIMIT ?`).all(limit);
   return users.map((u, i) => ({
     ...u,
     rank: i + 1,
