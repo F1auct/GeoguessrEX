@@ -28,6 +28,9 @@ const COUNTRY_MAP = [
   { latMin: -34, latMax: 5, lngMin: -74, lngMax: -34, country: "巴西" },
   { latMin: 36, latMax: 44, lngMin: -10, lngMax: 4, country: "西班牙" },
   { latMin: 47, latMax: 56, lngMin: 5, lngMax: 16, country: "德国" },
+  // 题库补充：挪威（奥斯陆）、新加坡
+  { latMin: 57, latMax: 72, lngMin: 4, lngMax: 32, country: "挪威" },
+  { latMin: 1, latMax: 3, lngMin: 103, lngMax: 105, country: "新加坡" },
 ];
 
 function detectCountry(lat, lng) {
@@ -38,13 +41,19 @@ function detectCountry(lat, lng) {
 export function getCountryQuestion() {
   const q = db.prepare("SELECT * FROM questions ORDER BY RANDOM() LIMIT 1").get();
   if (!q) return null;
-  return { lat: q.lat, lng: q.lng, heading: q.heading || 0, pitch: q.pitch || 0, fov: q.fov || 90, title: q.description || "" };
+  return { id: q.id, lat: q.lat, lng: q.lng, heading: q.heading || 0, pitch: q.pitch || 0, fov: q.fov || 90, title: q.description || "" };
 }
 
-export function submitCountryGuess(userId, guess) {
-  const country = detectCountry(guess.lat, guess.lng);
-  const correctCountry = detectCountry(guess.actualLat, guess.actualLng);
-  const correct = country === correctCountry;
+export function submitCountryGuess(userId, body) {
+  // 前端提交结构: { questionId, guess: { lat, lng } }
+  const { questionId, guess } = body || {};
+  const country = detectCountry(guess?.lat, guess?.lng);
+  // 正确答案以数据库题目坐标为准，不信任前端传入的 actualLat/actualLng
+  const q = questionId ? db.prepare("SELECT * FROM questions WHERE id=?").get(questionId) : null;
+  if (!q) return { error: "题目不存在", status: 404 };
+  const correctCountry = detectCountry(q.lat, q.lng);
+  // "未知"不参与匹配：题目或猜测任一方不在已知国家范围内都判错
+  const correct = country !== "未知" && country === correctCountry;
   let streak = db.prepare("SELECT * FROM country_streaks WHERE user_id=?").get(userId);
   if (!streak) { db.prepare("INSERT INTO country_streaks (id,user_id,streak,best_streak,updated_at) VALUES (?,?,0,0,?)").run(crypto.randomUUID(), userId, nowIso()); streak = { streak: 0, best_streak: 0 }; }
   if (correct) {
