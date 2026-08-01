@@ -536,6 +536,13 @@ textarea {
   backdrop-filter: blur(14px);
 }
 
+/* 米色容器内：恢复深色 */
+.card .current-bank-panel,
+.landing-panel:not(.landing-panel-rich) .current-bank-panel {
+  border-color: var(--line);
+  background: rgba(19, 26, 30, 0.04);
+}
+
 .current-bank-picker {
   margin-top: 0;
 }
@@ -543,6 +550,11 @@ textarea {
 .current-bank-id {
   margin: 10px 0 0;
   color: rgba(255, 248, 239, 0.72);
+}
+
+.card .current-bank-id,
+.landing-panel:not(.landing-panel-rich) .current-bank-id {
+  color: var(--muted);
 }
 
 .current-bank-actions {
@@ -588,6 +600,23 @@ textarea {
   color: #fff8ef;
 }
 
+/* 米色容器内（卡片 / 非透明 landing-panel）：恢复深色文字 */
+.card .summary-pill,
+.landing-panel:not(.landing-panel-rich) .summary-pill {
+  border-color: var(--line);
+  background: rgba(19, 26, 30, 0.04);
+}
+
+.card .summary-pill span,
+.landing-panel:not(.landing-panel-rich) .summary-pill span {
+  color: var(--muted);
+}
+
+.card .summary-pill strong,
+.landing-panel:not(.landing-panel-rich) .summary-pill strong {
+  color: var(--ink);
+}
+
 .notice-card {
   display: grid;
   gap: 10px;
@@ -597,6 +626,23 @@ textarea {
   border-radius: 24px;
   background: rgba(255, 248, 239, 0.12);
   backdrop-filter: blur(12px);
+}
+
+/* 米色容器内（卡片 / 非透明 landing-panel）：恢复深色文字 */
+.card .notice-card,
+.landing-panel:not(.landing-panel-rich) .notice-card {
+  border-color: var(--line);
+  background: rgba(19, 26, 30, 0.04);
+}
+
+.card .notice-card strong,
+.landing-panel:not(.landing-panel-rich) .notice-card strong {
+  color: var(--ink);
+}
+
+.card .notice-card p,
+.landing-panel:not(.landing-panel-rich) .notice-card p {
+  color: var(--muted);
 }
 
 .warning-card {
@@ -616,7 +662,7 @@ textarea {
 
 .notice-card p {
   margin: 0;
-  color: rgba(255, 248, 239, 0.84);
+  color: var(--muted);
   line-height: 1.7;
 }
 
@@ -795,6 +841,16 @@ textarea {
 
 .landing-shell-cinematic .display-title span:last-child {
   color: rgba(255, 248, 239, 0.74);
+}
+
+/* 标题位于米色 panel 内时恢复深色文字（排除透明背景的首页 landing-panel-rich） */
+.landing-shell-cinematic .landing-panel:not(.landing-panel-rich) .hero-kicker,
+.landing-shell-cinematic .landing-panel:not(.landing-panel-rich) .display-title span:first-child {
+  color: var(--accent-dark);
+}
+
+.landing-shell-cinematic .landing-panel:not(.landing-panel-rich) .display-title span:last-child {
+  color: var(--ink);
 }
 
 .landing-shell-cinematic .group-picker-card {
