@@ -4,6 +4,7 @@ import { haversineDistanceKm } from "../utils/haversine.js";
 import { scoreFromDistance } from "../utils/scoring.js";
 import { addXP } from "./xpService.js";
 import { addSeasonXP } from "./seasonService.js";
+import { resolveRankedMatch } from "./rankedService.js";
 import {
   getCharacter, getCard, drawCard, consumeLegendaryCard,
   applyPassiveScore, applyCardEffect, getDistanceHint, detectContinent, detectTerrain,
@@ -16,21 +17,87 @@ const SELECT_TIMEOUT_SEC = 30; // 角色选择时限
 function nowIso() { return new Date().toISOString(); }
 function genCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
-export function createRoom(userId, maxRounds = 5) {
+export function createRoom(userId, maxRounds = 5, options = {}) {
   const q = db.prepare("SELECT * FROM questions ORDER BY RANDOM() LIMIT 1").get();
   if (!q) return { error: "无可用题目", status: 500 };
 
   // 房主抽卡（角色等锁定后再记录）
   const card = drawCard(userId);
 
+  const isRanked = !!options.isRanked;
+  const botId = options.botId || null;
+
   const id = crypto.randomUUID(), code = genCode();
-  db.prepare(`INSERT INTO pvp_rooms (id,code,creator_id,status,question_data,round,max_rounds,round_history,creator_card,creator_card_used,creator_skill_used,creator_guess_count,round_started_at,select_deadline,created_at)
-    VALUES (?,?,?,'waiting',?,1,?,'[]',?,0,0,0,?,?,?)`)
+  db.prepare(`INSERT INTO pvp_rooms (id,code,creator_id,status,question_data,round,max_rounds,round_history,creator_card,creator_card_used,creator_skill_used,creator_guess_count,round_started_at,select_deadline,created_at,is_ranked)
+    VALUES (?,?,?,'waiting',?,1,?,'[]',?,0,0,0,?,?,?,?)`)
     .run(id, code, userId,
       JSON.stringify({ lat: q.lat, lng: q.lng, heading: q.heading || 0, pitch: q.pitch || 0, fov: q.fov || 90, title: q.description || "" }),
-      maxRounds, JSON.stringify(card), null, nowIso(), nowIso());
+      maxRounds, JSON.stringify(card), null, nowIso(), nowIso(), isRanked ? 1 : 0);
+
+  // 人机对战：bot 自动作为加入者入房并锁定角色，等待房主锁角色后开局
+  if (botId) {
+    autoJoinBot(code, botId);
+  }
 
   return { room: getRoomByCode(code) };
+}
+
+/** bot 自动加入房间并锁定随机角色 */
+function autoJoinBot(code, botId) {
+  const r = db.prepare("SELECT * FROM pvp_rooms WHERE code=?").get(code);
+  if (!r) return;
+  const bot = db.prepare("SELECT * FROM users WHERE id=?").get(botId);
+  if (!bot) return;
+
+  const card = drawCard(botId);
+  db.prepare(`UPDATE pvp_rooms SET joiner_id=?, joiner_card=?, status='selecting', select_deadline=? WHERE id=?`)
+    .run(botId, JSON.stringify(card), new Date(Date.now() + SELECT_TIMEOUT_SEC * 1000).toISOString(), r.id);
+  autoLockBotCharacter(code, botId);
+}
+
+/** bot 自动锁定随机角色 */
+function autoLockBotCharacter(code, botId) {
+  const r = db.prepare("SELECT * FROM pvp_rooms WHERE code=?").get(code);
+  if (!r) return;
+  if (r.joiner_id !== botId) return;
+  if (r.joiner_locked) return;
+
+  const charId = getRandomCharacterId();
+  db.prepare("UPDATE pvp_rooms SET joiner_character=?, joiner_locked=1 WHERE id=?").run(charId, r.id);
+  recordCharacterUsage(botId, charId);
+
+  // 双方都锁定则开局
+  const updated = db.prepare("SELECT * FROM pvp_rooms WHERE id=?").get(r.id);
+  if (updated.creator_locked && updated.joiner_locked) {
+    startPvPGame(updated);
+  }
+}
+
+/** 是否为 bot 用户 */
+export function isBotUser(userId) {
+  return typeof userId === "string" && userId.startsWith("bot-");
+}
+
+/** 生成 bot 猜测：围绕答案点按段位误差偏移 */
+function generateBotGuess(questionData, botId) {
+  const tierErrorKm = {
+    bronze: 3000, silver: 2200, gold: 1500, platinum: 900,
+    diamond: 550, master: 300, grandmaster: 150,
+  };
+  const tier = (botId || "").replace("bot-", "");
+  const errKm = tierErrorKm[tier] || 1500;
+
+  // 误差距离：0.2 ~ 1.0 × 误差半径，随机方位角
+  const distKm = errKm * (0.2 + Math.random() * 0.8);
+  const bearing = Math.random() * 2 * Math.PI;
+  const dLat = (distKm / 111) * Math.cos(bearing);
+  const dLng = (distKm / (111 * Math.cos((questionData.lat * Math.PI) / 180))) * Math.sin(bearing);
+
+  // 有一定概率接近答案（让 bot 偶有神操作）
+  const lucky = Math.random();
+  if (lucky < 0.1) return { lat: questionData.lat + dLat * 0.05, lng: questionData.lng + dLng * 0.05 };
+
+  return { lat: questionData.lat + dLat, lng: questionData.lng + dLng };
 }
 
 export function getRoomByCode(code) {
@@ -308,6 +375,18 @@ export function submitPvPGuess(roomCode, userId, guess, options = {}) {
     return resolvePvPRound(room);
   }
 
+  // 人机对战：真人提交后，若对手是 bot 且未提交，bot 立即自动提交
+  if (room.is_ranked && !isBotUser(userId)) {
+    const botId = isBotUser(room.creator_id) ? room.creator_id : isBotUser(room.joiner_id) ? room.joiner_id : null;
+    if (botId) {
+      const botGuess = generateBotGuess(JSON.parse(room.question_data), botId);
+      const botSubmit = submitPvPGuess(roomCode, botId, botGuess);
+      if (botSubmit?.roundResolved) {
+        return botSubmit; // 这一轮已经由 bot 提交并结算
+      }
+    }
+  }
+
   return { room: getRoomByCode(roomCode), submitted: true, score, distanceKm };
 }
 
@@ -347,6 +426,12 @@ function resolvePvPRound(room) {
     if (winnerId) { addXP(winnerId, 80); addSeasonXP(winnerId, 100); }
     addXP(room.creator_id, 30); addSeasonXP(room.creator_id, 40);
     if (room.joiner_id) { addXP(room.joiner_id, 30); addSeasonXP(room.joiner_id, 40); }
+
+    // 排位房间：自动结算段位（平局不结算；人机战同样结算）
+    if (room.is_ranked && winnerId) {
+      const loserId = winnerId === room.creator_id ? room.joiner_id : room.creator_id;
+      if (loserId) resolveRankedMatch(winnerId, loserId, room.id);
+    }
   } else {
     const q = db.prepare("SELECT * FROM questions ORDER BY RANDOM() LIMIT 1").get();
     if (q) {

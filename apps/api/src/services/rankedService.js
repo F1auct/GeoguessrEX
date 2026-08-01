@@ -7,6 +7,7 @@ function cryptoId(prefix) { return `${prefix}-${Math.random().toString(36).slice
 const TIERS = ["bronze", "silver", "gold", "platinum", "diamond", "master", "grandmaster"];
 const STARS_PER_TIER = 5;
 const QUEUE_TIMEOUT_MS = 120000; // 2 min queue timeout
+const BOT_FALLBACK_MS = 10000;   // 10s 未匹配到真人 → 人机对战
 
 const TIER_LABELS = {
   bronze: "青铜", silver: "白银", gold: "黄金", platinum: "铂金",
@@ -64,7 +65,7 @@ export function leaveQueue(userId) {
   return { ok: true };
 }
 
-/** 查找匹配对手 */
+/** 查找匹配对手；等待超 BOT_FALLBACK_MS 无人则降级到人机 */
 export function findMatch(userId) {
   const me = db.prepare("SELECT * FROM rank_queue WHERE user_id = ?").get(userId);
   if (!me) return null;
@@ -93,7 +94,37 @@ export function findMatch(userId) {
     }
   }
 
+  // 等待超过 BOT_FALLBACK_MS 且没有真人 → 匹配同段位人机
+  const waitedMs = Date.now() - new Date(me.joined_at).getTime();
+  if (waitedMs >= BOT_FALLBACK_MS) {
+    const bot = pickBot(me.tier);
+    // 从队列移除用户（bot 不占用队列）
+    db.prepare("DELETE FROM rank_queue WHERE user_id = ?").run(userId);
+    return {
+      opponentId: bot.id,
+      opponentTier: bot.rank_tier,
+      bot: true,
+      opponentName: bot.username,
+    };
+  }
+
   return null; // 未找到对手
+}
+
+/** 挑选与用户段位匹配（或相邻）的 bot */
+function pickBot(tier) {
+  const tierIdx = TIERS.indexOf(tier);
+  // 优先同段位，其次相邻段位（同段位 bot 已被占用/对战中也无妨，bot 可复用）
+  const botTiers = [];
+  for (let range = 0; range <= 2; range++) {
+    if (tierIdx - range >= 0) botTiers.push(TIERS[tierIdx - range]);
+    if (range > 0 && tierIdx + range < TIERS.length) botTiers.push(TIERS[tierIdx + range]);
+  }
+  for (const t of botTiers) {
+    const bot = db.prepare("SELECT * FROM users WHERE id = ?").get(`bot-${t}`);
+    if (bot) return bot;
+  }
+  return db.prepare("SELECT * FROM users WHERE id = 'bot-bronze'").get();
 }
 
 /** 获取队列状态 */

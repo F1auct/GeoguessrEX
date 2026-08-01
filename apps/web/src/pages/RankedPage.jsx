@@ -63,14 +63,20 @@ export default function RankedPage() {
         if (cancelled) return;
         setQueueWait(data.waitedMs || 0);
         if (data.match) {
-          // Match found! Create room
+          // Match found! Create room (bot 对战传入 botId)
           setInQueue(false);
           const roomRes = await fetch(`${API_BASE}/ranked/create-room`, {
             method: "POST", headers: { "Content-Type": "application/json", ...authHeaders },
-            body: JSON.stringify({ maxRounds: 5 }),
+            body: JSON.stringify({ maxRounds: 5, botId: data.match.bot ? data.match.opponentId : null }),
           });
-          const room = await roomRes.json();
-          navigate(`/pvp?code=${room.code}&ranked=true&opponentId=${data.match.opponentId}`);
+          const roomData = await roomRes.json();
+          const roomCode = roomData?.room?.code;
+          if (!roomCode) return;
+          if (data.match.bot) {
+            navigate(`/pvp?code=${roomCode}&ranked=true&opponentId=${data.match.opponentId}&bot=true`);
+          } else {
+            navigate(`/pvp?code=${roomCode}&ranked=true&opponentId=${data.match.opponentId}`);
+          }
         }
       } catch {}
     }
@@ -148,7 +154,9 @@ export default function RankedPage() {
                   borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px",
                 }} />
                 <p style={{ fontWeight: 600 }}>匹配中... {Math.floor(queueWait / 1000)}s</p>
-                <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>正在寻找同段位对手</p>
+                <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+                  {Math.floor(queueWait / 1000) >= 10 ? "暂时没有真人，将为你匹配人机对手..." : "正在寻找同段位对手"}
+                </p>
                 <button className="secondary-btn" onClick={handleLeaveQueue} style={{ marginTop: 8 }}>取消匹配</button>
               </div>
             )}

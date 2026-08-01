@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import GoogleStreetView from "../components/GoogleStreetView.jsx";
 import AmapGuessMap from "../components/AmapGuessMap.jsx";
@@ -111,6 +111,23 @@ export default function PvPPage() {
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(null), 2500); }
 
+  // ═══ 排位/巅峰赛 URL 参数自动进房 ═══
+  const [searchParams] = useSearchParams();
+  const urlCode = searchParams.get("code");
+  const isRankedUrl = searchParams.get("ranked") === "true" || searchParams.get("peak") === "true";
+  const isBotUrl = searchParams.get("bot") === "true";
+  const isRoomMode = !!urlCode;
+
+  useEffect(() => {
+    if (!urlCode || room) return;
+    let cancelled = false;
+    fetch(`${API}/pvp/room/${urlCode}`)
+      .then(r => r.json())
+      .then(r => { if (!cancelled) setRoom(r); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [urlCode, room]);
+
   // ═══ 创建/加入 ═══
   async function create() {
     const r = await fetch(`${API}/pvp/create`, {
@@ -205,6 +222,10 @@ export default function PvPPage() {
     const d = await r.json();
     if (!r.ok) { setError(d.error); setSubmitted(false); return; }
     setRoom(d.room); setGuess(null); setSwiftMarker1(null); setSwiftMarker2(null); setSwiftMode(false);
+    if (d.roundResolved) {
+      // 这一轮已由 bot 自动提交并结算：立即重置状态以便下一题继续
+      setSubmitted(false); setSkillUsed(false); setCardUsed(false); setDistanceHint(null);
+    }
   }
 
   function handleMapClick(pos) {
@@ -217,8 +238,28 @@ export default function PvPPage() {
 
   // ═══════════════ 渲染 ═══════════════
 
-  // 入口大厅
+  // 入口大厅（URL 模式进入时显示加载中）
   if (!room) {
+    if (isRoomMode) {
+      return (
+        <main className="mode-lobby-shell">
+          <div className="mode-lobby-card">
+            <div className="mode-lobby-hero">
+              <span className="mode-lobby-icon">{isBotUrl ? "🤖" : "⚔️"}</span>
+              <h1>{isRankedUrl ? "排位对战" : "1v1 对战"}</h1>
+              <p>{isBotUrl ? "已匹配到人机对手，正在进入对战..." : "正在进入房间..."}</p>
+              <div style={{
+                width: 48, height: 48, border: "4px solid var(--accent)", borderTopColor: "transparent",
+                borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "24px auto 0",
+              }} />
+              <p style={{ marginTop: 16 }}>
+                <button className="secondary-btn" onClick={() => navigate(isRankedUrl ? "/ranked" : "/")}>取消</button>
+              </p>
+            </div>
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="mode-lobby-shell">
         <div className="mode-lobby-card">
@@ -321,7 +362,7 @@ export default function PvPPage() {
               </div>
             )}
             <p style={{ color: "rgba(255,248,239,0.55)", fontSize: "0.85rem" }}>
-              对手 {opponentName || "???"} · {room.code}
+              对手 {opponentName || "???"} {isBotUrl ? "🤖" : ""} · {room.code}
               {iLocked ? " ✅ 已锁定" : bothLocked ? "" : ""}
             </p>
           </div>
@@ -396,7 +437,7 @@ export default function PvPPage() {
         <div className="pvp-hud-bar">
           <div className="pvp-hud-left">
             <span className="pvp-hud-round">第 {room.round}/{room.maxRounds} 局</span>
-            <span className="pvp-hud-vs">⚔️ VS <strong>{opponentName}</strong></span>
+            <span className="pvp-hud-vs">⚔️ VS <strong>{opponentName}{isBotUrl ? " 🤖" : ""}</strong></span>
           </div>
           <div className="pvp-hud-right">
             <span className={`pvp-hud-status ${iSubmitted ? "done" : ""}`}>
@@ -468,7 +509,7 @@ export default function PvPPage() {
             <p>选点：<strong>{guess ? `${guess.lat.toFixed(4)}, ${guess.lng.toFixed(4)}` : "未选"}</strong></p>
             {!iSubmitted ? (
               <button className="primary-btn" onClick={submitGuess} disabled={(!guess && !swiftMarker1) || submitted}>🚀 提交</button>
-            ) : bothSubmitted ? <p className="pvp-waiting-text">双方已提交，加载下一局...</p> : <p className="pvp-waiting-text">等待 {opponentName} 提交...</p>}
+            ) : bothSubmitted ? <p className="pvp-waiting-text">双方已提交，加载下一局...</p> : <p className="pvp-waiting-text">等待 {opponentName}{isBotUrl ? " 🤖" : ""} 提交...</p>}
           </section>
         </div>
       </main>
@@ -527,7 +568,11 @@ export default function PvPPage() {
             ))}
           </div>
           <div className="mode-result-actions">
-            <button className="mode-btn mode-btn-create" onClick={() => { setRoom(null); setGuess(null); setSubmitted(false); }}>再来一局</button>
+            {!isRankedUrl ? (
+              <button className="mode-btn mode-btn-create" onClick={() => { setRoom(null); setGuess(null); setSubmitted(false); }}>再来一局</button>
+            ) : (
+              <button className="mode-btn mode-btn-create" onClick={() => navigate("/ranked")}>返回排位</button>
+            )}
             <button className="secondary-btn" onClick={() => navigate("/")}>返回首页</button>
           </div>
         </div>

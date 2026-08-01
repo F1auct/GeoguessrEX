@@ -67,10 +67,13 @@ export function registerRankedRoutes(app) {
     }
   });
 
-  // 排位赛房间创建（复用PvP房间）
+  // 排位赛房间创建（复用PvP房间；带 botId 时创建人机对战房间）
   app.post("/api/ranked/create-room", requireAuth, (req, res) => {
     try {
-      const room = createRoom(req.user.id, req.body.maxRounds || 5);
+      const room = createRoom(req.user.id, req.body.maxRounds || 5, {
+        isRanked: true,
+        botId: req.body.botId || null,
+      });
       return res.json(room);
     } catch (e) {
       return res.status(500).json({ error: "创建房间失败" });
