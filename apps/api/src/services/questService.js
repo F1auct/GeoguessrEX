@@ -1,6 +1,8 @@
+import crypto from "crypto";
 import { db } from "./database.js";
 import { addXP } from "./xpService.js";
 import { addSeasonXP } from "./seasonService.js";
+import { getOrCreateWallet } from "./walletService.js";
 
 function nowIso() { return new Date().toISOString(); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -76,6 +78,19 @@ export function claimQuestReward(userId, questId) {
     addSeasonXP(userId, q.reward_xp);
   }
 
+  // 发放金币奖励并记录流水
+  if (q.reward_coin > 0) {
+    const wallet = getOrCreateWallet(userId);
+    const balanceBefore = wallet.balance_coin;
+    const balanceAfter = balanceBefore + q.reward_coin;
+    const ts = nowIso();
+    db.prepare("UPDATE wallets SET balance_coin = ?, updated_at = ? WHERE user_id = ?").run(balanceAfter, ts, userId);
+    db.prepare(`
+      INSERT INTO coin_transactions (id, user_id, type, amount, balance_before, balance_after, reference_id, created_at)
+      VALUES (?, ?, 'quest_reward', ?, ?, ?, ?, ?)
+    `).run(crypto.randomUUID(), userId, q.reward_coin, balanceBefore, balanceAfter, questId, ts);
+  }
+
   return { claimed: true, reward: { xp: q.reward_xp, coin: q.reward_coin } };
 }
 
@@ -91,7 +106,8 @@ export function getAllQuestProgress(userId) {
   const weekly = getUserQuestProgress(userId, getWeekStart());
   return {
     daily: daily.filter(q => q.quest_type === "daily"),
-    weekly: daily.filter(q => q.quest_type === "weekly"),
+    weekly: weekly.filter(q => q.quest_type === "weekly"),
+    // season 任务在 trackProgress 中使用当天日期记录
     season: daily.filter(q => q.quest_type === "season"),
   };
 }

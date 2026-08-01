@@ -238,6 +238,8 @@ function migrateNewFeatureTables() {
   migrateAddRankedSystem();
   migrateAddPeakSystem();
   migrateAddSeasonQuests();
+  migrateAddQuestRewardTxn();
+  migrateAddRankedBots();
 }
 
 function migrateAddPvPandStreakAndBR() {
@@ -997,6 +999,106 @@ function migrateAddSeasonQuests() {
   db.exec("BEGIN");
   try {
     for (const q of quests) insert.run(q.id, q.type, q.title, q.desc, q.target, q.count, q.xp, q.coin, now);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+// 排位人机：为每个段位创建 bot 账号（无法登录，仅用于匹配降级对战）
+function migrateAddRankedBots() {
+  // pvp_rooms 增加排位房间标记（结算时用于自动排位结算）
+  const hasRanked = db.prepare("PRAGMA table_info(pvp_rooms)").all().some(c => c.name === "is_ranked");
+  if (!hasRanked) {
+    try { db.exec("ALTER TABLE pvp_rooms ADD COLUMN is_ranked INTEGER NOT NULL DEFAULT 0"); } catch {}
+  }
+
+  // 修复 pvp_rooms 状态约束：代码使用 'selecting' 状态但约束未包含（SQLite 需重建表）
+  const pvpSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='pvp_rooms'").get()?.sql || "";
+  if (!pvpSql.includes("'selecting'")) {
+    db.exec("BEGIN");
+    try {
+      db.exec(`
+        CREATE TABLE pvp_rooms_new (
+          id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, creator_id TEXT NOT NULL,
+          joiner_id TEXT, status TEXT NOT NULL DEFAULT 'waiting' CHECK(status IN ('waiting','selecting','playing','finished')),
+          question_data TEXT, creator_guess TEXT, joiner_guess TEXT,
+          creator_score INTEGER, joiner_score INTEGER, winner_id TEXT,
+          round_history TEXT NOT NULL DEFAULT '[]',
+          round INTEGER NOT NULL DEFAULT 1, max_rounds INTEGER NOT NULL DEFAULT 5,
+          created_at TEXT NOT NULL,
+          creator_character TEXT NOT NULL DEFAULT '', joiner_character TEXT NOT NULL DEFAULT '',
+          creator_card TEXT NOT NULL DEFAULT '', joiner_card TEXT NOT NULL DEFAULT '',
+          creator_card_used INTEGER NOT NULL DEFAULT 0, joiner_card_used INTEGER NOT NULL DEFAULT 0,
+          creator_skill_used INTEGER NOT NULL DEFAULT 0, joiner_skill_used INTEGER NOT NULL DEFAULT 0,
+          round_started_at TEXT NULL, creator_guess_count INTEGER NOT NULL DEFAULT 0, joiner_guess_count INTEGER NOT NULL DEFAULT 0,
+          creator_locked INTEGER NOT NULL DEFAULT 0, joiner_locked INTEGER NOT NULL DEFAULT 0,
+          select_deadline TEXT NULL, is_ranked INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (joiner_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+        INSERT INTO pvp_rooms_new SELECT * FROM pvp_rooms;
+        DROP TABLE pvp_rooms;
+        ALTER TABLE pvp_rooms_new RENAME TO pvp_rooms;
+      `);
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
+  }
+
+  const exists = db.prepare("SELECT COUNT(*) AS count FROM users WHERE id LIKE 'bot-%'").get().count;
+  if (exists > 0) return;
+
+  const tiers = [
+    ["bronze", "青铜"], ["silver", "白银"], ["gold", "黄金"], ["platinum", "铂金"],
+    ["diamond", "钻石"], ["master", "大师"], ["grandmaster", "王者"],
+  ];
+  const now = new Date().toISOString();
+  // 填充 users 必填字段（bot 无法登录，密码用随机占位）
+  const insert = db.prepare(`
+    INSERT INTO users (id, username, username_key, email, email_key, role,
+      password_hash, password_salt, password_iterations, password_key_length, password_digest, created_at,
+      rank_tier, rank_stars, rank_updated_at)
+    VALUES (?, ?, ?, ?, ?, 'bot', ?, ?, 1, 1, 'sha512', ?, ?, 0, ?)
+  `);
+  for (const [tier, label] of tiers) {
+    const id = `bot-${tier}`;
+    const username = `人机·${label}`;
+    const salt = Math.random().toString(36).slice(2, 12);
+    insert.run(id, username, `bot:${tier}`, `bot-${tier}@geoguessr.bot`, `bot:${tier}@geoguessr.bot`,
+      salt, salt, now, tier, now);
+  }
+}
+
+// 扩展 coin_transactions 的类型约束，支持赛季任务金币奖励流水
+function migrateAddQuestRewardTxn() {
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='coin_transactions'").get();
+  if (tableInfo && tableInfo.sql.includes("'quest_reward'")) {
+    return; // already migrated
+  }
+
+  // SQLite doesn't support ALTER TABLE DROP CHECK, so we recreate the table
+  db.exec("BEGIN");
+  try {
+    db.exec(`
+      CREATE TABLE coin_transactions_new (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('recharge', 'withdraw', 'bounty_reward', 'bounty_create', 'bounty_refund', 'quest_reward')),
+        amount INTEGER NOT NULL,
+        balance_before INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL,
+        reference_id TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      INSERT INTO coin_transactions_new SELECT * FROM coin_transactions;
+      DROP TABLE coin_transactions;
+      ALTER TABLE coin_transactions_new RENAME TO coin_transactions;
+    `);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
