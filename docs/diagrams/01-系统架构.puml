@@ -1,0 +1,112 @@
+@startuml 系统架构
+skinparam backgroundColor #FEFEFE
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam defaultFontName Microsoft YaHei
+
+title GeoGuesr MVP — 系统分层架构
+
+package "前端 (Vite + React, :5173)" {
+  [App.jsx\nsession状态机 + page路由] as App
+
+  package "页面" {
+    [AuthPage\n登录/注册] as AuthP
+    [GamePage\n游戏主循环] as GameP
+    [CreateMapPage\nURL解析创建] as CreateP
+    [ManagePage\n题库CRUD] as ManageP
+  }
+
+  package "组件" {
+    [StreetViewPanel\nGoogle街景iframe] as StreetVP
+    [AmapGuessMap\n高德猜点地图] as AmapGM
+    [AmapResultMap\n高德结果地图] as AmapRM
+    [ResultPanel\n距离/分数面板] as ResultP
+    [UserBar\n全局用户栏] as UserB
+  }
+
+  package "服务" {
+    [api.js\nfetch封装 + Bearer注入] as ApiS
+    [amapLoader.js\n高德JSAPI单例加载] as AmapL
+    [coordTransform.js\nWGS-84 ↔ GCJ-02] as CoordT
+  }
+
+  App --> AuthP
+  App --> GameP
+  App --> CreateP
+  App --> ManageP
+  App --> UserB
+  GameP --> StreetVP
+  GameP --> AmapGM
+  GameP --> AmapRM
+  GameP --> ResultP
+  AmapGM --> AmapL
+  AmapGM --> CoordT
+  AmapRM --> AmapL
+  AmapRM --> CoordT
+  App --> ApiS
+  GameP --> ApiS
+  CreateP --> ApiS
+  ManageP --> ApiS
+}
+
+package "后端 (Express, :3001)" {
+  [server.js\ncors + json + 路由注册] as Server
+
+  package "路由" {
+    [auth.js\nregister/login/me] as AuthR
+    [questions.js\n题库组+题目CRUD] as QuesR
+    [submit.js\n判分] as SubmitR
+    [health.js] as HealthR
+  }
+
+  package "中间件" {
+    [auth.js\nBearer Token鉴权] as AuthMW
+  }
+
+  package "服务" {
+    [authService.js\nPBKDF2密码 + HMAC Token] as AuthS
+    [gameService.js\ngradeAnswer()] as GameS
+    [questionBank.js\nJSON题库读写] as QBank
+  }
+
+  package "工具" {
+    [haversine.js\n大圆距离] as Hav
+    [scoring.js\n指数衰减评分] as Score
+  }
+
+  Server --> AuthR
+  Server --> QuesR
+  Server --> SubmitR
+  Server --> HealthR
+  AuthR --> AuthS
+  QuesR --> AuthMW
+  QuesR --> QBank
+  SubmitR --> AuthMW
+  SubmitR --> GameS
+  GameS --> Hav
+  GameS --> Score
+  GameS --> QBank
+}
+
+package "外部API" {
+  [Google Maps\nEmbed API] as GMaps
+  [高德 JSAPI v2.0] as AMap
+}
+
+package "数据存储" {
+  database "questions.json\n题库数据" as QJSON
+  database "users.json\n用户数据\n(.gitignored)" as UJSON
+}
+
+ApiS ..> Server : "HTTP + Bearer Token"
+StreetVP ..> GMaps : "iframe embed"
+AmapL ..> AMap : "script load"
+AuthS --> UJSON
+QBank --> QJSON
+
+note bottom of AuthMW
+  GET /api/questions + /api/submit
+  强制要求 Bearer Token
+end note
+
+@enduml

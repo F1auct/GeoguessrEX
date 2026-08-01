@@ -1,0 +1,58 @@
+@startuml 游戏主流程图
+' 插入位置：PRD §3 功能模块总览之后
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+
+title GeoguessrEX — 核心游戏流程
+
+start
+:打开网站;
+
+if (已登录?) then (否)
+  :注册/登录;
+endif
+
+:进入首页;
+
+partition "模式选择" {
+  switch (选择模式)
+    case (单人练习)
+      :选择题库 → 随机抽题;
+    case (排位赛)
+      :匹配队列 → 同段位配对;
+    case (巅峰赛)
+      :资格校验\n(钻石+20局·18-24时);
+    case (PvP/大逃杀)
+      :创建/加入房间;
+    case (环球之旅)
+      :选路线 → 逐站游玩;
+    case (每日挑战)
+      :加载今日题目;
+    case (国家连击)
+      :生成随机街景;
+  endswitch
+}
+
+partition "游戏进行" {
+  :展示街景/图片;
+  :地图选点;
+  :提交答案;
+  :后端评分\n(Haversine + 指数衰减);
+}
+
+partition "结算" {
+  :展示结果\n(距离+分数+地图);
+  :更新赛季任务进度;
+  :XP + 金币奖励;
+
+  if (排位/巅峰?) then (是)
+    :段位升降 / ELO变化;
+  endif
+
+  :返回首页;
+}
+
+stop
+
+@enduml

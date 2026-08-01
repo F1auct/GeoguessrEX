@@ -1,0 +1,143 @@
+@startuml 数据库ER图
+' 插入位置：PRD §5.4 数据库表一览之后
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam linetype ortho
+
+title GeoguessrEX — 核心数据库 ER 图
+
+' ── 核心实体 ──
+entity "users" as users #LightSteelBlue {
+  * id <<PK>>
+  --
+  username, email, role
+  xp, level
+  rank_tier, rank_stars
+  peak_score
+}
+
+entity "question_banks" as banks #HoneyDew {
+  * id <<PK>>
+  --
+  title, owner_user_id <<FK>>
+  price, is_listed
+}
+
+entity "questions" as questions #HoneyDew {
+  * id <<PK>>
+  --
+  bank_id <<FK>>
+  lat, lng, source_type
+  heading, pitch, fov
+}
+
+entity "wallets" as wallets #LavenderBlush {
+  * user_id <<PK/FK>>
+  balance_coin
+}
+
+entity "bounties" as bounties #PapayaWhip {
+  * id <<PK>>
+  creator_id <<FK>>, winner_id <<FK>>
+  title, reward_coin, status
+}
+
+' ── 竞技 ──
+entity "pvp_rooms" as pvp #MistyRose {
+  * id <<PK>>
+  creator_id <<FK>>, joiner_id <<FK>>
+  status, round, max_rounds
+}
+
+entity "rank_queue\nrank_matches" as ranked #MistyRose {
+  user_id, tier, stars
+}
+
+entity "peak_queue\npeak_matches" as peak #MistyRose {
+  user_id, peak_score, ELO
+}
+
+entity "br_rooms\nbr_players" as br #MistyRose {
+  host_id, status, max_players
+}
+
+entity "country_streaks" as streak #MistyRose {
+  user_id, streak, best_streak
+}
+
+' ── 环球之旅 ──
+entity "routes\nroute_stops\nuser_route_progress" as routes #AliceBlue {
+  title, difficulty, xp_reward
+  stops[], cultural_note
+}
+
+' ── 赛季 ──
+entity "seasons\nseason_pass\nquests\nquest_progress" as season #Thistle {
+  name, start_date, end_date
+  levels[], reward_xp
+}
+
+' ── 每日 ──
+entity "daily_challenges\nchallenge_submissions\ncheck_ins" as daily #LemonChiffon {
+  date, question_data, streak
+}
+
+' ── 社交 ──
+entity "community_posts" as posts #Linen {
+  * id <<PK>>
+  author_id <<FK>>
+  title, category, status
+}
+
+entity "comments\nlikes\nfollows\nnotifications" as social #Linen {
+  target_type, target_id, user_id <<FK>>
+}
+
+' ── 战队+市场 ──
+entity "teams\nteam_members" as teams #Beige {
+  name, owner_id <<FK>>
+}
+
+entity "bank_purchases" as market #Beige {
+  bank_id <<FK>>, buyer_id <<FK>>
+}
+
+' ── 藏宝游戏 ──
+entity "treasure_games\nlocation_tasks\ngame_registrations\ngame_progress" as treasure #Cornsilk {
+  creator_id <<FK>>
+  game_type, region, status
+}
+
+' ── 审核+追踪 ──
+entity "reviews\nuser_used_cards\ncharacter_usage" as misc #Snow {
+  target_type, target_id
+  reviewer_id <<FK>>
+}
+
+' ============================================================
+' 关系
+' ============================================================
+users ||--o{ banks
+users ||--o{ questions : "上传"
+users ||--|| wallets
+users ||--o{ bounties
+users ||--o{ pvp
+users ||--o{ ranked
+users ||--o{ peak
+users ||--o{ br
+users ||--o{ streak
+users ||--o{ routes
+users ||--o{ season
+users ||--o{ daily
+users ||--o{ posts
+users ||--o{ social
+users ||--o{ teams
+users ||--o{ treasure
+users ||--o{ misc
+
+banks ||--o{ questions
+banks ||--o{ market
+users ||--o{ market : "购买"
+
+@enduml

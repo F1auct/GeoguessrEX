@@ -1,0 +1,53 @@
+@startuml App状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+
+title App.jsx — Session + Page 两级状态机
+
+state checking : 读取 localStorage 中的 token
+state checking : 若有 token → GET /api/auth/me
+state checking : 成功后进入 authenticated
+state checking : 失败或不存在 → guest
+
+state guest : 展示 AuthPage
+state guest : 登录 或 注册
+state guest : 成功后 → authenticated
+
+state authenticated {
+  state loading : 加载题库组
+  loading --> ready : GET /api/groups 成功
+  loading --> error : 加载失败
+
+  state ready {
+    state "页面切换" as pages {
+      home --> game : 开始答题
+      home --> create : 添加题目
+      home --> manage : 管理题库
+      game --> home : 返回首页
+      create --> home : 返回首页
+      manage --> home : 返回首页
+    }
+  }
+
+  error --> ready : 重试
+}
+
+[*] --> checking
+
+checking --> guest : 无 token / /me 失败
+checking --> authenticated : /me 成功
+
+guest --> authenticated : 登录/注册成功\n(App.handleAuthenticated)
+authenticated --> guest : 登出 / 401\n(App.handleLogout)
+
+note right of authenticated
+  session.status = "authenticated"
+  token 存入 localStorage("geoguesr.authToken")
+end note
+
+note right of guest
+  session.status = "guest"
+  localStorage 中的 token 已清除
+end note
+
+@enduml

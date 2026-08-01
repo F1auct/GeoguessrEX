@@ -1,0 +1,17 @@
+@startuml 游戏流程
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam ArrowColor #b44d28
+skinparam defaultTextAlignment center
+left to right direction
+
+title GeoGuessr MVP — 单题游戏流程
+
+(*) -right-> "① 选择题库"
+-right-> "② 观看街景"
+-right-> "③ 寻找线索"
+-right-> "④ 标记位置"
+-right-> "⑤ 提交评分"
+-right-> (*)
+
+@enduml

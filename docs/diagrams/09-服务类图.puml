@@ -1,0 +1,153 @@
+@startuml 后端服务类图
+' 插入位置：PRD §5.3 业务服务一览之后
+
+allowmixing
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+title GeoguessrEX — 后端服务架构
+
+package "核心" #AliceBlue {
+  class authService {
+    + register() + login()
+    + verifyToken()
+  }
+  class gameService {
+    + gradeAnswer()
+    + haversineDistanceKm()
+    + scoreFromDistance()
+  }
+  class xpService {
+    + addXP() + addSeasonXP()
+    + getLevelInfo()
+  }
+}
+
+package "竞技" #MistyRose {
+  class rankedService {
+    + joinQueue() + attemptMatch()
+    + resolveMatch()
+    7段位·5星制
+  }
+  class peakService {
+    + checkEligibility()
+    + attemptMatch()
+    ELO K=32·1200初始
+  }
+  class pvpService {
+    + createRoom() + joinRoom()
+    + submitGuess() + useSkill()
+    角色·卡牌·技能
+  }
+  class gameModesService {
+    + BR/国家连击
+  }
+}
+
+package "玩法" #HoneyDew {
+  class routeService {
+    + listRoutes() + startRoute()
+    + submitStopAnswer()
+    3条预置路线
+  }
+  class dailyChallengeService {
+    + getTodayChallenges()
+    + checkIn()
+  }
+  class bountyService {
+    + createBounty() + submitAnswer()
+    + autoExpire()
+  }
+  class treasureGameService {
+    + createGame() + register()
+    + completeStep()
+  }
+}
+
+package "题库" #LavenderBlush {
+  class questionBank {
+    + CRUD banks/questions
+    + checkOwnership()
+  }
+  class reviewService {
+    + performReview()
+    + revokeReview()
+  }
+}
+
+package "社交" #Linen {
+  class socialService {
+    + comments() + likes() + follows()
+  }
+  class communityService {
+    + CRUD posts
+  }
+  class notificationService {
+    + create() + markRead()
+  }
+  class teamService {
+    + createTeam() + joinTeam()
+  }
+}
+
+package "经济" #PapayaWhip {
+  class walletService {
+    + recharge() + withdraw()
+    + bountyDeduction()
+  }
+  class marketplaceService {
+    + listBanks() + buyBank()
+    20%平台费
+  }
+}
+
+package "赛季" #Thistle {
+  class seasonService {
+    + getCurrentSeason()
+    + getUserPass()
+    20级通行证
+  }
+  class questService {
+    + getAllQuests()
+    + claimReward()
+    13个预置任务
+  }
+}
+
+package "中间件" #Snow {
+  class AuthMiddleware {
+    + requireAuth()
+    + requireRole()
+  }
+}
+
+class "SQLite\n(better-sqlite3)" as DB #LightGray <<database>>
+
+' ── 依赖 ──
+authService ..> DB
+gameService ..> DB
+xpService ..> DB
+rankedService ..> DB
+peakService ..> DB
+pvpService ..> DB
+gameModesService ..> DB
+routeService ..> DB
+dailyChallengeService ..> DB
+bountyService ..> DB
+treasureGameService ..> DB
+questionBank ..> DB
+reviewService ..> DB
+socialService ..> DB
+communityService ..> DB
+notificationService ..> DB
+teamService ..> DB
+walletService ..> DB
+marketplaceService ..> DB
+seasonService ..> DB
+questService ..> DB
+
+AuthMiddleware ..> authService
+
+@enduml

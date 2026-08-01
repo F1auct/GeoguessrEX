@@ -1,0 +1,70 @@
+@startuml 游戏状态机
+' GeoguessrEX — GamePage 五态流转
+
+skinparam backgroundColor transparent
+skinparam stateBackgroundColor #EBE2E0
+skinparam stateBorderColor #D1C8C6
+skinparam stateFontName Open Sans
+skinparam stateFontSize 14
+skinparam stateFontColor #FFFFFF
+
+skinparam stateArrowColor #B44D28
+skinparam stateArrowFontName Open Sans
+skinparam stateArrowFontSize 11
+skinparam stateArrowFontColor #835E54
+
+skinparam noteBackgroundColor #FBF6EE
+skinparam noteBorderColor #D1C8C6
+skinparam noteFontName Open Sans
+skinparam noteFontSize 11
+
+' ── States ──
+
+state "loading\n加载题库" as loading #B44D28
+state "ready\n等待猜点" as ready #244C47
+state "submitting\n提交答案" as submitting #7F2D15
+state "result\n查看结果" as result #835E54
+state "error\n加载失败" as error #8C3B2A
+
+' ── Main flow ──
+
+[*] -down-> loading : 进入游戏页\n切换题库组
+
+loading -down-> ready : fetchQuestions()\n返回题目列表
+loading -right-> error : 请求失败\n401 / 网络错误
+
+ready -down-> submitting : 用户点击\n"提交答案"
+
+submitting -down-> result : submitAnswer()\n返回评分结果
+submitting -up-> ready : 提交失败\n401 / 网络错误
+
+result -up-> ready : 点击"下一题"\nhandleNext() 重置状态
+
+' ── Side transitions ──
+
+ready -left-> loading : 切换题库组
+result -right-> loading : 切换题库组
+error -left-> loading : 返回重试
+
+' ── Notes ──
+
+note left of ready
+  <b>ready 态 UI</b>
+  • 全屏 Google 街景
+  • 折叠高德猜点地图
+  • HUD 信息面板
+end note
+
+note right of result
+  <b>result 态 UI</b>
+  • 高德结果地图（双标记+连线）
+  • 距离 / 得分 / 坐标
+  • 地点介绍卡片
+end note
+
+note bottom of loading
+  <b>触发条件：</b>useEffect 监听 group.id 变化，
+  token 校验失败则调用 onUnauthorized() 强制登出
+end note
+
+@enduml

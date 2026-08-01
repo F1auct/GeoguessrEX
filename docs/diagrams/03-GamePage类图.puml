@@ -1,0 +1,106 @@
+@startuml GamePage类图
+skinparam backgroundColor #FEFEFE
+skinparam classFontName Microsoft YaHei
+skinparam defaultFontName Microsoft YaHei
+skinparam classAttributeIconSize 0
+
+title GamePage 及其依赖组件 — 类图
+
+class GamePage {
+  -- Props --
+  + group: GroupSummary
+  + token: string
+  + user: PublicUser | null
+  + onBack(): void
+  + onLogout(): void
+  + onUnauthorized(): void
+  --
+  -- State --
+  - questions: Question[]
+  - questionIndex: number
+  - guess: { lat: number, lng: number } | null
+  - result: SubmitResponse | null
+  - mapExpanded: boolean
+  - status: "loading" | "ready" | "submitting" | "result" | "error"
+  - error: string
+  --
+  -- Computed --
+  + question: Question | null {query}
+  + isLast: boolean {query}
+  --
+  -- Methods --
+  + handleSubmit(): Promise<void>
+  + handleNext(): void
+  --
+  -- 生命周期 --
+  fetchQuestions() on mount / group.id change
+  401 时调用 onUnauthorized()
+}
+
+class StreetViewPanel {
+  + question: Question
+  + apiKey: string
+  + fullscreen: boolean = false
+  --
+  + buildStreetViewEmbedUrl(): string {static}
+}
+
+class AmapGuessMap {
+  + value: { lat, lng } | null
+  + onChange(coord): void
+  + apiKey: string
+  --
+  - containerRef: Ref
+  - mapRef: Ref
+  - markerRef: Ref
+  - loadError: string
+  - mapReady: boolean
+
+}
+
+class AmapResultMap {
+  + result: SubmitResponse
+  + apiKey: string
+  --
+  - containerRef: Ref
+  - mapRef: Ref
+  - overlaysRef: Ref[]
+  - loadError: string
+  - mapReady: boolean
+
+
+}
+
+class ResultPanel {
+  + result: SubmitResponse
+  + onNext(): void
+  + isLast: boolean
+}
+
+class amapLoader {
+  + loadAmap(apiKey): Promise<AMap> {static}
+  - amapPromise: Promise | null {static}
+}
+
+class coordTransform {
+  + wgs84ToGcj02(lng, lat): { lng, lat } {static}
+  + gcj02ToWgs84(lng, lat): { lng, lat } {static}
+}
+
+GamePage --> StreetViewPanel : 渲染
+GamePage --> AmapGuessMap : 渲染 (guessing 阶段)
+GamePage --> AmapResultMap : 渲染 (result 阶段)
+GamePage --> ResultPanel : 渲染 (result 阶段)
+GamePage --> "api.js" : submitAnswer() / fetchQuestions()
+AmapGuessMap --> amapLoader : 调用
+AmapGuessMap --> coordTransform : 调用
+AmapResultMap --> amapLoader : 调用
+AmapResultMap --> coordTransform : 调用
+
+note bottom of GamePage
+  status 流转:
+  loading → ready → submitting → result → ready (下一题)
+  401 时中断，调用 onUnauthorized()
+end note
+
+@enduml

@@ -1,0 +1,43 @@
+stateDiagram-v2
+    direction LR
+
+    [*] --> loading : 进入游戏页 / 切换题库组
+
+    state loading {
+        [*] --> 请求题库
+        请求题库 --> 解析数据
+    }
+
+    loading --> ready : fetchQuestions() 成功
+    loading --> error : 请求失败 / 401 未授权
+
+    state ready {
+        [*] --> 街景就绪
+        街景就绪 --> 地图就绪
+        地图就绪 --> 等待标记
+    }
+
+    ready --> submitting : 用户点击"提交答案"
+    ready --> loading : 切换题库组
+
+    state submitting {
+        [*] --> 发送请求
+        发送请求 --> 等待响应
+    }
+
+    submitting --> result : submitAnswer() 成功返回
+    submitting --> ready : 提交失败 / 401
+
+    state result {
+        [*] --> 展示结果地图
+        展示结果地图 --> 展示得分面板
+    }
+
+    result --> ready : 点击"下一题" (handleNext)
+    result --> loading : 切换题库组
+
+    state error {
+        [*] --> 显示错误信息
+    }
+
+    error --> loading : 切换题库组重新加载

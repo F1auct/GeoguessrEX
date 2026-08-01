@@ -1,0 +1,99 @@
+@startuml 系统用例图
+' 插入位置：PRD §2 用户角色之后
+
+left to right direction
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Microsoft YaHei
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+
+title GeoguessrEX — 系统用例图
+
+actor "游客" as Guest
+actor "注册用户" as User
+actor "审核员" as Mod
+actor "管理员" as Admin
+
+Guest <|-- User
+User <|-- Mod
+Mod <|-- Admin
+
+package "用户认证" #WhiteSmoke {
+  usecase "注册/登录" as UC_Auth
+  usecase "个人主页" as UC_Profile
+}
+
+package "图寻核心" #WhiteSmoke {
+  usecase "单人练习\n(街景+图片)" as UC_Practice
+  usecase "提交答案+查看结果" as UC_Submit
+}
+
+package "竞技模式" #WhiteSmoke {
+  usecase "排位赛\n7段位升降星" as UC_Ranked
+  usecase "巅峰赛\nELO+限时" as UC_Peak
+  usecase "PvP对战" as UC_PvP
+  usecase "大逃杀" as UC_BR
+}
+
+package "特色玩法" #WhiteSmoke {
+  usecase "环球之旅" as UC_Tour
+  usecase "每日挑战+签到" as UC_Daily
+  usecase "国家连击" as UC_Streak
+  usecase "悬赏答题" as UC_Bounty
+  usecase "藏宝游戏" as UC_Treasure
+}
+
+package "赛季系统" #WhiteSmoke {
+  usecase "通行证+任务" as UC_Season
+}
+
+package "题库+市场" #WhiteSmoke {
+  usecase "题库CRUD" as UC_Bank
+  usecase "上传题目" as UC_Upload
+  usecase "市场交易" as UC_Market
+}
+
+package "社交+战队+钱包+排行" #WhiteSmoke {
+  usecase "好友/评论/点赞/通知" as UC_Social
+  usecase "战队" as UC_Team
+  usecase "钱包" as UC_Wallet
+  usecase "排行榜" as UC_LB
+}
+
+package "管理后台" #WhiteSmoke {
+  usecase "题库/内容审核" as UC_Review
+  usecase "用户管理" as UC_Admin
+}
+
+' ── 关联 ──
+Guest --> UC_Auth
+Guest --> UC_LB
+Guest --> UC_Practice : "限3局/日"
+
+User --> UC_Auth
+User --> UC_Profile
+User --> UC_Practice
+User --> UC_Submit
+User --> UC_Ranked
+User --> UC_Peak
+User --> UC_PvP
+User --> UC_BR
+User --> UC_Tour
+User --> UC_Daily
+User --> UC_Streak
+User --> UC_Bounty
+User --> UC_Treasure
+User --> UC_Season
+User --> UC_Bank
+User --> UC_Upload
+User --> UC_Market
+User --> UC_Social
+User --> UC_Team
+User --> UC_Wallet
+User --> UC_LB
+
+Mod --> UC_Review
+Admin --> UC_Admin
+Admin --> UC_Review
+
+@enduml
