@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
-const API = "http://localhost:3001/api";
+const API = import.meta.env.VITE_API_BASE || "http://localhost:3001/api";
+
+const TAB_LABELS = {
+  pass: "赛季奖励",
+  quests: "赛季任务",
+  leaderboard: "排行榜",
+};
+
+const QUEST_GROUP_LABELS = {
+  daily: "日常任务",
+  weekly: "周常任务",
+  season: "赛季任务",
+};
 
 export default function SeasonPage() {
   const { token, user } = useAuth();
@@ -9,64 +21,129 @@ export default function SeasonPage() {
   const [pass, setPass] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [quests, setQuests] = useState(null);
-  const [tab, setTab] = useState("pass"); // pass | quests | leaderboard
+  const [tab, setTab] = useState("pass");
   const [status, setStatus] = useState("loading");
 
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/season`).then(r => r.json()),
-      token ? fetch(`${API}/season/pass`, { headers: authHeaders }).then(r => r.json()).catch(() => null) : null,
-      fetch(`${API}/season/leaderboard`).then(r => r.json()),
-      token ? fetch(`${API}/quests`, { headers: authHeaders }).then(r => r.json()).catch(() => null) : null,
-    ]).then(([s, p, lb, q]) => {
-      setSeason(s); setPass(p); setLeaderboard(lb.items || []); setQuests(q); setStatus("ready");
-    }).catch(() => setStatus("error"));
+      fetch(`${API}/season`).then((r) => r.json()),
+      token
+        ? fetch(`${API}/season/pass`, { headers: authHeaders })
+            .then((r) => r.json())
+            .catch(() => null)
+        : null,
+      fetch(`${API}/season/leaderboard`).then((r) => r.json()),
+      token
+        ? fetch(`${API}/quests`, { headers: authHeaders })
+            .then((r) => r.json())
+            .catch(() => null)
+        : null,
+    ])
+      .then(([s, p, lb, q]) => {
+        setSeason(s);
+        setPass(p);
+        setLeaderboard(lb.items || []);
+        setQuests(q);
+        setStatus("ready");
+      })
+      .catch(() => setStatus("error"));
   }, [token]);
 
   async function claimQuest(questId) {
     try {
-      const res = await fetch(`${API}/quests/${questId}/claim`, { method: "POST", headers: authHeaders });
+      const res = await fetch(`${API}/quests/${questId}/claim`, {
+        method: "POST",
+        headers: authHeaders,
+      });
       const data = await res.json();
       if (data.claimed) {
-        // Refresh quests
-        const qRes = await fetch(`${API}/quests`, { headers: authHeaders });
+        const [qRes, pRes] = await Promise.all([
+          fetch(`${API}/quests`, { headers: authHeaders }),
+          fetch(`${API}/season/pass`, { headers: authHeaders }),
+        ]);
         setQuests(await qRes.json());
+        setPass(await pRes.json());
       }
     } catch {}
   }
 
-  if (status === "loading") return <div className="status-shell">加载赛季...</div>;
-  if (!season) return <div className="status-shell">暂无赛季数据</div>;
+  if (status === "loading") {
+    return <div className="status-shell">加载赛季数据...</div>;
+  }
 
-  const maxLevel = season.levels?.length || 20;
+  if (!season) {
+    return <div className="status-shell">暂无赛季数据</div>;
+  }
+
   const userLevel = pass?.level || 1;
   const userXp = pass?.xp || 0;
   const progress = pass?.progress || 0;
   const endDate = new Date(season.endDate);
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 86400000));
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((endDate.getTime() - Date.now()) / 86400000)
+  );
+
+  // progress ring: circumference = 2*PI*52 ≈ 326.7
+  const ringCircumference = 326.7;
+  const ringOffset = ringCircumference * (1 - progress / 100);
 
   return (
-    <main className="page-shell">
+    <main className="season-page">
       {/* Hero */}
       <section className="season-hero">
-        <div className="season-hero-bg" />
-        <div className="season-hero-content">
-          <div className="season-hero-left">
-            <span className="season-badge">🏆 赛季通行证</span>
+        <div className="season-hero-inner">
+          <div className="season-hero-info">
+            <span className="season-hero-badge">SEASON PASS</span>
             <h1>{season.name}</h1>
-            <p>{season.theme} · 剩余 <strong>{daysLeft}</strong> 天</p>
-            <p className="season-dates">{new Date(season.startDate).toLocaleDateString("zh-CN")} — {new Date(season.endDate).toLocaleDateString("zh-CN")}</p>
+            <p className="season-hero-theme">
+              {season.theme} / 剩余 <strong>{daysLeft}</strong> 天
+            </p>
+            <p className="season-hero-dates">
+              {new Date(season.startDate).toLocaleDateString("zh-CN")} -{" "}
+              {new Date(season.endDate).toLocaleDateString("zh-CN")}
+            </p>
           </div>
-          <div className="season-hero-right">
+
+          <div className="season-hero-ring">
             <div className="season-level-ring">
               <svg viewBox="0 0 120 120" width="120" height="120">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(214,184,143,0.15)" strokeWidth="10" />
-                <circle cx="60" cy="60" r="52" fill="none" stroke="url(#seasonGrad)" strokeWidth="10"
-                  strokeDasharray={`${(progress / 100) * 326.7} 326.7`}
-                  strokeLinecap="round" transform="rotate(-90 60 60)" />
-                <defs><linearGradient id="seasonGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#f59e0b" /><stop offset="100%" stopColor="#d97706" /></linearGradient></defs>
+                <defs>
+                  <linearGradient
+                    id="season-ring-grad"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stopColor="#b44d28" />
+                    <stop offset="50%" stopColor="#c97d3a" />
+                    <stop offset="100%" stopColor="#d6b88f" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  fill="none"
+                  stroke="url(#season-ring-grad)"
+                  strokeWidth="8"
+                  strokeDasharray={`${ringCircumference} ${ringCircumference}`}
+                  strokeDashoffset={ringOffset}
+                  strokeLinecap="round"
+                  transform="rotate(-90 60 60)"
+                  style={{ transition: "stroke-dashoffset 0.6s ease" }}
+                />
               </svg>
               <div className="season-level-center">
                 <span className="season-level-num">{userLevel}</span>
@@ -75,126 +152,190 @@ export default function SeasonPage() {
             </div>
           </div>
         </div>
-        <div className="season-progress-bar">
-          <div className="season-progress-fill" style={{ width: `${progress}%` }} />
-          <span className="season-progress-text">{userXp.toLocaleString()} / {pass?.nextLevelXp?.toLocaleString() || "MAX"} XP</span>
+
+        <div className="season-progress-wrap">
+          <div className="season-progress-bar">
+            <div
+              className="season-progress-fill"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="season-progress-text">
+            {userXp.toLocaleString()} /{" "}
+            {pass?.nextLevelXp?.toLocaleString() || "MAX"} XP
+          </span>
         </div>
       </section>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, margin: "20px 0", justifyContent: "center" }}>
-        {[
-          { key: "pass", label: "🎁 赛季奖励" },
-          { key: "quests", label: "📋 赛季任务" },
-          { key: "leaderboard", label: "🏆 排行榜" },
-        ].map(t => (
-          <button key={t.key} className={tab === t.key ? "primary-btn" : "secondary-btn"} onClick={() => setTab(t.key)}>
-            {t.label}
+      <div className="season-tabs">
+        {Object.entries(TAB_LABELS).map(([key, label]) => (
+          <button
+            key={key}
+            className={`season-tab${tab === key ? " active" : ""}`}
+            onClick={() => setTab(key)}
+          >
+            {label}
           </button>
         ))}
       </div>
 
+      {/* Rewards Panel */}
+      {tab === "pass" && (
+        <section className="season-rewards">
+          <h3>奖励轨道</h3>
+          <div className="season-rewards-scroll">
+            {(season.levels || []).map((lvl) => {
+              const unlocked =
+                pass &&
+                (userLevel > lvl.level ||
+                  (userLevel === lvl.level && progress >= 100));
+              const current = pass && lvl.level === userLevel;
+              let cardClass = "season-reward-card";
+              if (unlocked && !current) cardClass += " unlocked";
+              else if (current) cardClass += " current";
+              else cardClass += " locked";
+
+              let statusLabel = "锁定";
+              if (unlocked && !current) statusLabel = "已解锁";
+              else if (current) statusLabel = "当前等级";
+
+              return (
+                <div key={lvl.level} className={cardClass}>
+                  <div className="season-reward-level">{lvl.level}</div>
+                  <div className="season-reward-text">{lvl.reward}</div>
+                  <div className="season-reward-xp">
+                    {lvl.xp.toLocaleString()} XP
+                  </div>
+                  <div className="season-reward-status">{statusLabel}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Quests Panel */}
-      {tab === "quests" && quests ? (
-        <section>
-          {["daily", "weekly", "season"].map(qt => {
-            const items = (quests[qt] || []).filter(q => q.quest_type === qt);
+      {tab === "quests" && quests && (
+        <section className="season-quests">
+          {["daily", "weekly", "season"].map((qt) => {
+            const items = quests[qt] || [];
             if (!items.length) return null;
             return (
-              <div key={qt} style={{ marginBottom: 20 }}>
-                <h3 style={{ margin: "0 0 12px 0" }}>
-                  {{ daily: "📅 日常任务", weekly: "📆 周常任务", season: "🏅 赛季任务" }[qt]}
-                </h3>
-                <div style={{ display: "grid", gap: 8 }}>
-                  {items.map(q => {
-                    const prog = q.progress || {};
-                    const done = prog.completed;
-                    const claimed = prog.claimed;
-                    const pct = Math.min(100, Math.round(((prog.current_count || 0) / q.target_count) * 100));
-                    return (
-                      <div key={q.id} className="card" style={{
-                        display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                        opacity: claimed ? 0.5 : 1,
-                      }}>
-                        <span style={{ fontSize: "1.3rem" }}>{claimed ? "✅" : done ? "🎉" : "⬜"}</span>
-                        <div style={{ flex: 1 }}>
-                          <strong>{q.title}</strong>
-                          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.8rem" }}>{q.description}</p>
-                          <div style={{
-                            height: 4, background: "rgba(0,0,0,0.08)", borderRadius: 2, marginTop: 6,
-                            overflow: "hidden",
-                          }}>
-                            <div style={{ height: "100%", width: `${pct}%`, background: done ? "var(--green)" : "var(--accent)", borderRadius: 2, transition: "width 0.3s" }} />
-                          </div>
-                          <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>
-                            {prog.current_count || 0}/{q.target_count}
-                          </span>
-                        </div>
-                        <div style={{ textAlign: "right", minWidth: 80 }}>
-                          <span style={{ color: "var(--green)", fontWeight: 600, fontSize: "0.85rem" }}>+{q.reward_xp} XP</span>
-                          {q.reward_coin > 0 ? <span style={{ color: "var(--accent)", fontSize: "0.8rem", display: "block" }}>+{q.reward_coin} 🪙</span> : null}
-                          {done && !claimed ? (
-                            <button className="primary-btn" style={{ padding: "4px 12px", fontSize: "0.8rem", marginTop: 4 }} onClick={() => claimQuest(q.id)}>
-                              领取
-                            </button>
-                          ) : null}
-                        </div>
+              <div key={qt} className="season-quest-group">
+                <h3>{QUEST_GROUP_LABELS[qt] || qt}</h3>
+                {items.map((q) => {
+                  const prog = q.progress || {};
+                  const done = prog.completed;
+                  const claimed = prog.claimed;
+                  const pct = Math.min(
+                    100,
+                    Math.round(
+                      ((prog.current_count || 0) / q.target_count) * 100
+                    )
+                  );
+                  return (
+                    <div
+                      key={q.id}
+                      className={`quest-card${claimed ? " claimed" : ""}`}
+                    >
+                      <div className="quest-status">
+                        {claimed ? "OK" : done ? "!" : ""}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="quest-body">
+                        <strong>{q.title}</strong>
+                        <p>{q.description}</p>
+                        <div className="quest-progress-mini">
+                          <div
+                            className={`quest-progress-mini-fill${
+                              done ? " done" : ""
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="quest-progress-label">
+                          {prog.current_count || 0}/{q.target_count}
+                        </span>
+                      </div>
+                      <div className="quest-reward">
+                        <span className="quest-reward-xp">
+                          +{q.reward_xp} XP
+                        </span>
+                        {q.reward_coin > 0 && (
+                          <span className="quest-reward-coin">
+                            +{q.reward_coin} Coin
+                          </span>
+                        )}
+                        {done && !claimed && (
+                          <button
+                            className="quest-claim-btn"
+                            onClick={() => claimQuest(q.id)}
+                          >
+                            领取
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
         </section>
-      ) : null}
-
-      {/* Rewards Panel (pass tab) */}
-      {tab === "pass" ? (
-      <section className="season-rewards">
-        <h3>🎁 赛季奖励</h3>
-        <div className="season-rewards-scroll">
-          {(season.levels || []).map((lvl, i) => {
-            const unlocked = pass ? (userLevel > lvl.level || (userLevel === lvl.level && progress >= 100)) : false;
-            const current = pass && lvl.level === userLevel;
-            return (
-              <div key={lvl.level} className={`season-reward-card ${unlocked ? "unlocked" : ""} ${current ? "current" : ""}`}>
-                <div className="season-reward-level">{lvl.level}</div>
-                <div className="season-reward-icon">{unlocked ? "✅" : current ? "🔓" : "🔒"}</div>
-                <div className="season-reward-text">{lvl.reward}</div>
-                <div className="season-reward-xp">{lvl.xp.toLocaleString()} XP</div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      ) : null}
+      )}
 
       {/* Leaderboard */}
-      {tab === "leaderboard" ? (
-      <section className="card" style={{ padding: 0 }}>
-        <div className="team-lb-header"><h3>🏆 赛季排行榜</h3></div>
-        {leaderboard.length > 0 ? (
-          <div className="team-lb-list">
-            {leaderboard.map((item, i) => (
-              <div key={item.userId} className={`lb-item team-lb-item ${i < 3 ? "lb-top3" : ""} ${item.userId === user?.id ? "team-lb-mine" : ""}`}>
-                <div className="lb-rank">{i < 3 ? <span className="lb-medal">{["🥇","🥈","🥉"][i]}</span> : <span className="lb-rank-num">{item.rank}</span>}</div>
-                <div className="lb-user"><strong>{item.username}</strong><span className="lb-meta">Lv.{item.level}</span></div>
-                <div className="lb-value">{item.xp.toLocaleString()} XP</div>
-              </div>
-            ))}
-          </div>
-        ) : <p className="team-lb-empty">暂无排行</p>}
-      </section>
-      ) : null}
+      {tab === "leaderboard" && (
+        <section className="season-lb">
+          <h3>赛季排行榜</h3>
+          {leaderboard.length > 0 ? (
+            <div className="season-lb-list">
+              {leaderboard.map((item, i) => {
+                const topClass =
+                  i === 0 ? "top1" : i === 1 ? "top2" : i === 2 ? "top3" : "";
+                const mine = item.userId === user?.id ? " mine" : "";
+                return (
+                  <div
+                    key={item.userId}
+                    className={`season-lb-item${topClass ? " " + topClass : ""}${mine}`}
+                  >
+                    <div className="season-lb-rank">{item.rank}</div>
+                    <div className="season-lb-user">
+                      <strong>{item.username}</strong>
+                      <span className="season-lb-level">
+                        Lv.{item.level}
+                      </span>
+                    </div>
+                    <div className="season-lb-xp">
+                      {item.xp.toLocaleString()} XP
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="team-lb-empty">暂无排行</p>
+          )}
+        </section>
+      )}
 
-      {/* 如何获得赛季经验 */}
-      <div className="detail-info-strip">
-        <div className="detail-info-item"><span>⚔️ PvP 获胜</span><strong>+100 XP</strong></div>
-        <div className="detail-info-item"><span>🔥 大逃杀获胜</span><strong>+200 XP</strong></div>
-        <div className="detail-info-item"><span>📅 每日挑战</span><strong>+30 XP</strong></div>
-        <div className="detail-info-item"><span>💰 悬赏答题</span><strong>+15~80 XP</strong></div>
-        <div className="detail-info-item"><span>🗺️ 藏宝通关</span><strong>+25~120 XP</strong></div>
+      {/* XP Sources */}
+      <div className="season-xp-sources">
+        <span className="season-xp-source">
+          PvP 获胜 <strong>+100 XP</strong>
+        </span>
+        <span className="season-xp-source">
+          大逃杀获胜 <strong>+200 XP</strong>
+        </span>
+        <span className="season-xp-source">
+          每日挑战 <strong>+30 XP</strong>
+        </span>
+        <span className="season-xp-source">
+          悬赏答题 <strong>+15~80 XP</strong>
+        </span>
+        <span className="season-xp-source">
+          藏宝通关 <strong>+25~120 XP</strong>
+        </span>
       </div>
     </main>
   );

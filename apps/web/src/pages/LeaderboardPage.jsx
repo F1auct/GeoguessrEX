@@ -3,20 +3,20 @@ import { useEffect, useState } from "react";
 const API_BASE = "http://localhost:3001/api";
 
 const TYPES = [
-  { key: "score", label: "🏆 答题高分", unit: "分" },
-  { key: "bounty", label: "🎯 悬赏获胜", unit: "次" },
-  { key: "hunt", label: "🗺️ 藏宝通关", unit: "次" },
-  { key: "community", label: "📝 社区贡献", unit: "篇" },
-  { key: "wealth", label: "💰 财富排行", unit: "金币" }
+  { key: "score", label: "答题高分", unit: "分" },
+  { key: "bounty", label: "悬赏获胜", unit: "次" },
+  { key: "hunt", label: "藏宝通关", unit: "次" },
+  { key: "community", label: "社区贡献", unit: "篇" },
+  { key: "wealth", label: "财富排行", unit: "金币" },
 ];
 
 const PERIODS = [
   { key: "week", label: "本周" },
   { key: "month", label: "本月" },
-  { key: "all", label: "总榜" }
+  { key: "all", label: "总榜" },
 ];
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+const MEDALS = ["Gold", "Silver", "Bronze"];
 
 export default function LeaderboardPage() {
   const [type, setType] = useState("score");
@@ -26,12 +26,14 @@ export default function LeaderboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setStatus("loading");
+    let cancelled = false;
     setError("");
+    if (!items.length) setStatus("loading");
     fetch(`${API_BASE}/leaderboard?type=${type}&period=${period}`)
       .then((res) => { if (!res.ok) throw new Error("加载失败"); return res.json(); })
-      .then((data) => { setItems(data.items || []); setStatus("ready"); })
-      .catch((err) => { setError(err.message); setStatus("error"); });
+      .then((data) => { if (!cancelled) { setItems(data.items || []); setStatus("ready"); } })
+      .catch((err) => { if (!cancelled) { setError(err.message); setStatus("error"); } });
+    return () => { cancelled = true; };
   }, [type, period]);
 
   return (
@@ -66,21 +68,24 @@ export default function LeaderboardPage() {
 
       {/* 排行列表 */}
       {status === "loading" ? (
-        <div className="status-shell">加载排行榜...</div>
+        <div className="lb-loading">加载排行榜...</div>
       ) : status === "error" ? (
-        <div className="status-shell"><p>加载失败：{error}</p></div>
+        <div className="lb-loading">加载失败：{error}</div>
       ) : !items.length ? (
-        <div className="card" style={{ padding: "48px 32px", textAlign: "center" }}>
-          <span style={{ fontSize: "2.5rem", display: "block", marginBottom: 12 }}>📭</span>
+        <div className="lb-empty">
           <strong>暂无排行数据</strong>
-          <p className="hero-copy">快去玩一局游戏，成为第一个上榜的人！</p>
+          <p>快去玩一局游戏，成为第一个上榜的人</p>
         </div>
       ) : (
         <div className="lb-list">
           {items.map((item, i) => (
             <div key={item.userId} className={`lb-item ${i < 3 ? "lb-top3" : ""}`}>
               <div className="lb-rank">
-                {i < 3 ? <span className="lb-medal">{MEDALS[i]}</span> : <span className="lb-rank-num">{i + 1}</span>}
+                {i < 3 ? (
+                  <span className={`lb-medal lb-medal-${i}`}>{MEDALS[i]}</span>
+                ) : (
+                  <span className="lb-rank-num">{i + 1}</span>
+                )}
               </div>
               <div className="lb-user">
                 <span className="lb-avatar">{item.username?.[0]?.toUpperCase() || "?"}</span>
