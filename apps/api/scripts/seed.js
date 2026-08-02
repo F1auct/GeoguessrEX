@@ -3,8 +3,15 @@
 
 import { db, initDatabase } from "../src/services/database.js";
 import crypto from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
+import { bountyDefs, generatePlaceholderImages, placeholderUrl } from "./bountySeedData.js";
+import { gameDefs, generateGamePlaceholderImages, gameImageUrl } from "./gameSeedData.js";
 
 initDatabase();
+
+var __dirname = path.dirname(fileURLToPath(import.meta.url));
+var uploadsDir = path.resolve(__dirname, "../uploads/questions");
 
 var now = new Date().toISOString();
 var uuid = function() { return crypto.randomUUID(); };
@@ -151,26 +158,13 @@ console.log("Created " + posts.length + " community posts");
 // bounties
 
 var insertBounty = db.prepare(
-  "INSERT INTO bounties (id, creator_id, title, description, reward_coin, deadline, question_data, status, winner_id, created_at) VALUES (?, ?, ?, ?, ?, ?, '{}', ?, ?, ?)"
+  "INSERT INTO bounties (id, creator_id, title, description, reward_coin, deadline, question_data, status, winner_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 );
 var insertBountySub = db.prepare(
   "INSERT INTO bounty_submissions (id, bounty_id, user_id, guess_lat, guess_lng, distance_km, score, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 );
 
-var bountyDefs = [
-  { title: "猜猜这是哪个古镇" },
-  { title: "雪山之巅在哪里" },
-  { title: "热带海滩定位挑战" },
-  { title: "欧洲古城堡识别" },
-  { title: "沙漠中的绿洲" },
-  { title: "港口城市挑战" },
-  { title: "大学校园定位" },
-  { title: "火车站识别挑战" },
-  { title: "中国古镇系列之周庄" },
-  { title: "日本寺庙定位" },
-  { title: "南美雨林探秘" },
-  { title: "北欧峡湾识别" },
-];
+generatePlaceholderImages(uploadsDir);
 
 for (var bi = 0; bi < bountyDefs.length; bi++) {
   var bd = bountyDefs[bi];
@@ -178,11 +172,14 @@ for (var bi = 0; bi < bountyDefs.length; bi++) {
   var creator = wUser();
   var isClosed = bi < 8;
   var winner = isClosed ? wUserTop(0.6) : null;
+  var mediaList = [{ url: placeholderUrl(bi), type: "image", name: bd.title }];
+  var questionData = JSON.stringify({ lat: bd.lat, lng: bd.lng, mediaList });
 
   insertBounty.run(
     bid, userIds[creator], bd.title,
     "悬赏任务：" + bd.title + "。考验你的地理知识！",
     randInt(50, 500), daysAgo(-randInt(1, 14)),
+    questionData,
     isClosed ? "closed" : "active",
     isClosed ? userIds[winner] : null,
     daysAgo(randInt(0, 40))
@@ -205,7 +202,7 @@ console.log("Created " + bountyDefs.length + " bounties");
 // treasure games
 
 var insertGame = db.prepare(
-  "INSERT INTO treasure_games (id, creator_id, title, description, game_type, region, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'treasure_hunt', ?, 'active', ?, ?)"
+  "INSERT INTO treasure_games (id, creator_id, title, description, game_type, region, status, media_list, created_at, updated_at) VALUES (?, ?, ?, ?, 'treasure_hunt', ?, 'active', ?, ?, ?)"
 );
 var insertReg = db.prepare(
   "INSERT INTO game_registrations (id, game_id, user_id, player_info, status, created_at) VALUES (?, ?, ?, '{}', 'approved', ?)"
@@ -214,22 +211,15 @@ var insertGP = db.prepare(
   "INSERT INTO game_progress (id, registration_id, user_id, game_id, current_step, completed_steps, started_at, completed_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 );
 
-var gameDefs = [
-  { title: "武大樱花季寻宝", region: "湖北武汉" },
-  { title: "西湖十景打卡挑战", region: "浙江杭州" },
-  { title: "故宫秘境探索", region: "北京" },
-  { title: "外滩夜景追踪", region: "上海" },
-  { title: "鼓浪屿海岛探险", region: "福建厦门" },
-  { title: "宽窄巷子美食之旅", region: "四川成都" },
-  { title: "珠江新城摩天楼定位", region: "广东广州" },
-];
+generateGamePlaceholderImages(uploadsDir);
 
 var regEntries = [];
 
 for (var gi = 0; gi < gameDefs.length; gi++) {
   var g = gameDefs[gi];
   var gid = uuid();
-  insertGame.run(gid, userIds[wUser()], g.title, "在" + g.region + "完成一系列定位任务", g.region, now, now);
+  var gameMedia = [{ url: gameImageUrl(gi), type: "image", name: g.title }];
+  insertGame.run(gid, userIds[wUser()], g.title, "在" + g.region + "完成一系列定位任务", g.region, JSON.stringify(gameMedia), now, now);
 
   var numPlayers = randInt(3, 8);
   for (var j = 0; j < numPlayers; j++) {

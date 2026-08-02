@@ -1,4 +1,4 @@
-export default function GoogleStreetView({ lat, lng, heading = 0, pitch = 0, fov = 90, apiKey }) {
+export default function GoogleStreetView({ lat, lng, heading = 0, pitch = 0, fov = 90, apiKey, pano }) {
   if (!apiKey) {
     return (
       <div className="streetview-empty" style={{ minHeight: "100vh" }}>
@@ -10,11 +10,16 @@ export default function GoogleStreetView({ lat, lng, heading = 0, pitch = 0, fov
 
   const params = new URLSearchParams({
     key: apiKey,
-    location: `${lat},${lng}`,
     heading: String(heading),
     pitch: String(pitch),
     fov: String(fov || 90)
   });
+  if (pano) {
+    // 有 pano 时精确固定到该全景，避免 embed 就近吸附到错误位置
+    params.set("pano", pano);
+  } else {
+    params.set("location", `${lat},${lng}`);
+  }
 
   const src = `https://www.google.com/maps/embed/v1/streetview?${params.toString()}`;
 

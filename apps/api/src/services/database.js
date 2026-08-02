@@ -226,6 +226,7 @@ function migrateNewFeatureTables() {
   // 放宽 reviews.action 约束以支持 revoke
   migrateReviewsAllowRevoke();
   migrateAddRevokedStatus();
+  migrateAddGameMediaList();
   migrateAddNotificationsTable();
   migrateAddSocialTables();
   migrateAddOrgFields();
@@ -538,6 +539,17 @@ function migrateAddCommunityMediaList() {
   }
 }
 
+function migrateAddGameMediaList() {
+  const hasColumn = db
+    .prepare("PRAGMA table_info(treasure_games)")
+    .all()
+    .some((column) => column.name === "media_list");
+
+  if (!hasColumn) {
+    db.exec("ALTER TABLE treasure_games ADD COLUMN media_list TEXT NOT NULL DEFAULT '[]'");
+  }
+}
+
 function migrateReviewsAllowRevoke() {
   const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='reviews'").get();
   if (tableInfo && tableInfo.sql.includes("'revoke'")) {
@@ -787,17 +799,18 @@ function migrateAddWorldTour() {
     {
       id: "route_silk_road",
       title: "丝绸之路",
-      subtitle: "穿越千年商道",
-      description: "从古都长安出发，穿越中亚腹地，抵达欧亚交汇的伊斯坦布尔。重走这条连接东西方的古老商路，感受两千年的文明交融。",
+      subtitle: "从长安到伊斯坦布尔",
+      description: "从古都长安出发，穿越塔什干与撒马尔罕的蓝色穹顶，跨越里海与高加索山脉，最终抵达欧亚交汇的伊斯坦布尔。重走这条连接东西方的古老商路，感受两千年的文明交融。",
       difficulty: "medium",
       xp_reward: 600,
       coin_reward: 60,
       stops: [
         { title: "西安 · 钟楼", desc: "丝绸之路的东方起点，十三朝古都的心脏。", lat: 34.2610, lng: 108.9420, heading: 0, pitch: 10, note: "西安古称长安，是丝绸之路的起点。钟楼建于明代，位于城市正中心，四条大街在此交汇。" },
-        { title: "敦煌 · 莫高窟", desc: "大漠中的艺术宝库，丝路重镇。", lat: 40.0415, lng: 94.8030, heading: 180, pitch: 5, note: "敦煌是丝绸之路的咽喉要道，莫高窟又称千佛洞，现存洞窟735个，壁画4.5万平方米。" },
-        { title: "喀什 · 老城", desc: "帕米尔高原脚下的西域明珠。", lat: 39.4700, lng: 75.9900, heading: 90, pitch: 5, note: "喀什是古丝绸之路南北道的交汇点，老城区有着两千多年历史，是世界上最古老的生土建筑群之一。" },
+        { title: "塔什干 · 帖木儿广场", desc: "中亚之心，丝路东段重镇。", lat: 41.3110, lng: 69.2797, heading: 0, pitch: 10, note: "塔什干是乌兹别克斯坦首都，中亚最大的城市之一，自古是丝路东段的重要枢纽。帖木儿广场得名于中亚征服者帖木儿，他建立的帝国以撒马尔罕为中心，打通了横跨欧亚的商路。" },
         { title: "撒马尔罕 · 雷吉斯坦广场", desc: "中亚的蓝宝石，帖木儿帝国的瑰宝。", lat: 39.6547, lng: 66.9757, heading: 270, pitch: 10, note: "撒马尔罕有2500多年历史，雷吉斯坦广场的三座神学院是世界伊斯兰建筑的代表作，蓝色瓷砖在阳光下熠熠生辉。" },
-        { title: "德黑兰 · 大巴扎", desc: "波斯帝国的繁华心脏。", lat: 35.6750, lng: 51.4200, heading: 135, pitch: 5, note: "德黑兰大巴扎是世界最大的巴扎之一，绵延10公里。伊朗地处丝绸之路中段，自古是东西方贸易的中转站。" },
+        { title: "布哈拉 · 卡隆宣礼塔", desc: "丝路上保存最完好的古城。", lat: 39.7762, lng: 64.4148, heading: 180, pitch: 5, note: "布哈拉地处丝路咽喉，是古代中亚的宗教与学术中心。卡隆宣礼塔高46米，建于12世纪，传说成吉思汗攻陷该城时曾为这座高塔的壮美而倾倒。" },
+        { title: "巴库 · 少女塔", desc: "里海之滨的千年古城。", lat: 40.3665, lng: 49.8370, heading: 90, pitch: 5, note: "巴库老城是阿塞拜疆的历史中心，少女塔建于12世纪，是里海之滨最古老的建筑之一。巴库是丝路从里海通往高加索的必经之路，古城内的中世纪商队驿站见证着往来驼铃。" },
+        { title: "第比利斯 · 老城", desc: "高加索的温泉古都。", lat: 41.6899, lng: 44.8085, heading: 180, pitch: 10, note: "第比利斯是格鲁吉亚首都，地处高加索山麓，是丝路北道的重镇。老城保留着中世纪以来的街道格局，蜿蜒小巷与硫磺浴池诉说着这座古城两千年来的故事。" },
         { title: "伊斯坦布尔 · 大巴扎", desc: "欧亚交汇的十字路口。", lat: 41.0100, lng: 28.9680, heading: 0, pitch: 10, note: "伊斯坦布尔横跨欧亚两大洲，是丝绸之路的终点。这里曾是拜占庭帝国和奥斯曼帝国的首都，拿破仑说：'如果世界是一个国家，它的首都就是伊斯坦布尔。'" },
       ]
     },
